@@ -1,0 +1,76 @@
+# .github/workflows/terraform-pr.yaml
+name: 'Terraform PR Checks'
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infra/terraform/**'
+
+jobs:
+  terraform:
+    name: 'Terraform Checks'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # To comment on PRs
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.0.0 # Specify a compatible version
+
+      - name: Configure GCP Credentials
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Terraform Fmt
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init (dev workspace)
+        run: |
+          terraform init
+          terraform workspace select dev || terraform workspace new dev
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color \
+            -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
+            -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}" \
+            > terraform_plan.txt
+        env:
+          TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
+          TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
+
+      - name: Add Plan to PR Comment
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform_plan.txt', 'utf8');
+            const output = `#### Terraform Format and Style 🖌️`${{ steps.fmt.outcome }}`
+            #### Terraform Validation 🤖`${{ steps.validate.outcome }}`
+            #### Terraform Plan 📖
+            ```terraform
+            ${plan}
+            ```
+            `;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });

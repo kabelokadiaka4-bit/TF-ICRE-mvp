@@ -1,0 +1,114 @@
+# .github/workflows/terraform-deploy.yaml
+name: 'Terraform Deploy'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/terraform/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
+      # Optional input for approving production deployments
+      approve:
+        description: 'Approve production deployment?'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  # Job for deploying to Dev environment automatically on push to main
+  deploy_dev:
+    name: 'Deploy to Dev'
+    runs-on: ubuntu-latest
+    environment: dev # Use GitHub Environments for better security/visibility
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' # Only runs on push to main
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.0.0
+
+      - name: Configure GCP Credentials
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Terraform Init (dev workspace)
+        run: |
+          terraform init
+          terraform workspace select dev || terraform workspace new dev
+
+      - name: Terraform Apply (dev)
+        run: terraform apply -auto-approve \
+          -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
+          -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}"
+        env:
+          TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
+          TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
+
+  # Job for deploying to UAT/Prod environments manually via workflow_dispatch
+  deploy_manual:
+    name: 'Deploy to ${{ github.event.inputs.environment }}'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }} # Selects environment based on input
+    if: github.event_name == 'workflow_dispatch' # Only runs on manual trigger
+
+    # Add environment protection rules for UAT and Prod if desired (e.g., manual approval)
+    # needs: deploy_dev # Uncomment if you want UAT/Prod to wait for dev to pass
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.0.0
+
+      - name: Configure GCP Credentials
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          
+      - name: Terraform Init (${{ github.event.inputs.environment }} workspace)
+        run: |
+          terraform init
+          terraform workspace select ${{ github.event.inputs.environment }} || terraform workspace new ${{ github.event.inputs.environment }}
+
+      - name: Terraform Plan (${{ github.event.inputs.environment }})
+        run: |
+          terraform plan -no-color \
+            -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
+            -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}" \
+            > terraform_plan_output.txt
+        env:
+          TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
+          TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
+          
+      - name: Terraform Apply (${{ github.event.inputs.environment }})
+        if: github.event.inputs.approve == true || github.event.inputs.environment != 'prod' # Auto-approve for non-prod, require explicit approval for prod
+        run: terraform apply -auto-approve \
+          -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
+          -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}"
+        env:
+          TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
+          TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
+
+      - name: Terraform Apply (Production - Manual Approval)
+        if: github.event.inputs.approve == false && github.event.inputs.environment == 'prod'
+        run: |
+          echo "Production deployment requires explicit approval. Rerun with 'approve: true'."
+          exit 1

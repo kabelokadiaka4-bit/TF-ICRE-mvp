@@ -1,0 +1,12 @@
+# FastAPI for building the API
+fastapi
+
+# Uvicorn for running the FastAPI server
+uvicorn
+
+# OPA client for policy decisions
+opa-python-client
+
+# GCP SDKs
+google-cloud-firestore
+google-cloud-bigquery

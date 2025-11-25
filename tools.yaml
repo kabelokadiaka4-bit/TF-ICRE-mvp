@@ -1,0 +1,16 @@
+
+# This file configures connections to various MCP (Model Context Protocol) servers.
+# You need to replace the placeholder URLs with the actual addresses where your
+# MCP servers are running. These are often local servers started by other tools.
+
+servers:
+  # Configuration for the Google Kubernetes Engine (GKE) MCP server.
+  # The address should point to the running GKE MCP server instance.
+  - name: gke
+    address: "http://localhost:PORT_FOR_GKE" # Replace PORT_FOR_GKE with the correct port.
+
+  # Configuration for the Dart MCP server.
+  # This server is usually started by the Flutter or Dart SDK.
+  # The address should point to the running Dart MCP server instance.
+  - name: dart
+    address: "http://localhost:PORT_FOR_DART" # Replace PORT_FOR_DART with the correct port.

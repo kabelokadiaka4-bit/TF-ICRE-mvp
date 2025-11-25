@@ -1,0 +1,15 @@
+# FastAPI for building the API
+fastapi
+
+# Uvicorn for running the FastAPI server
+uvicorn
+
+# ML Framework for Graph Neural Networks
+# Note: PyTorch Geometric requires PyTorch.
+# Specific versions should be pinned based on compatibility.
+torch
+torch_geometric
+
+# GCP SDKs
+google-cloud-storage
+google-cloud-documentai

@@ -1,0 +1,16 @@
+# FastAPI for building the API
+fastapi
+
+# Uvicorn for running the FastAPI server
+uvicorn
+
+# ML Frameworks mentioned in the technical document
+scikit-learn
+xgboost
+tensorflow
+
+# GCP SDKs for interacting with Google Cloud services
+google-cloud-aiplatform # For Vertex AI
+google-cloud-bigquery
+google-cloud-storage
+google-cloud-firestore

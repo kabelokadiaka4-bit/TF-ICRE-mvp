@@ -1,0 +1,18 @@
+{
+  "name": "genkit-examples",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@genkit-ai/core": "^1.24.0",
+    "@genkit-ai/flow": "^0.5.17",
+    "@genkit-ai/googleai": "^1.24.0"
+  }
+}
