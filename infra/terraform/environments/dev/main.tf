@@ -1,5 +1,20 @@
 # /infra/terraform/environments/dev/main.tf
 
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+  }
+  # Optional: Add backend configuration here for state storage
+  # backend "gcs" {
+  #   bucket = "tf-icre-terraform-state"
+  #   prefix = "dev"
+  # }
+}
+
 # Define the provider for this environment
 provider "google" {
   project = var.gcp_project_id

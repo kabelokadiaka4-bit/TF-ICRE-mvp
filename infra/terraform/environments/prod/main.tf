@@ -1,5 +1,15 @@
 # /infra/terraform/environments/prod/main.tf
 
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+  }
+}
+
 # Production environment should have stricter settings and potentially different resources.
 # Define the provider for this environment
 provider "google" {

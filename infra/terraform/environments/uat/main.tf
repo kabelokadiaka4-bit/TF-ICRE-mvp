@@ -1,5 +1,15 @@
 # /infra/terraform/environments/uat/main.tf
 
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+  }
+}
+
 # UAT environment will mirror dev initially, but potentially with more strict settings
 # Define the provider for this environment
 provider "google" {

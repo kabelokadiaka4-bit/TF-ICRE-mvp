@@ -26,12 +26,6 @@ on:
 
 jobs:
   # Job for deploying to Dev environment automatically on push to main
-  deploy_dev:
-    name: 'Deploy to Dev'
-    runs-on: ubuntu-latest
-    environment: dev # Use GitHub Environments for better security/visibility
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' # Only runs on push to main
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -46,20 +40,15 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Terraform Init (dev workspace)
-        run: |
-          terraform init
-          terraform workspace select dev || terraform workspace new dev
-        working-directory: infra/terraform
+      - name: Terraform Init (dev environment)
+        run: terraform init
+        working-directory: infra/terraform/environments/dev
 
       - name: Terraform Apply (dev)
         run: terraform apply -auto-approve \
-          -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
-          -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}"
-        working-directory: infra/terraform
-        env:
-          TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
-          TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
+          -var "gcp_project_id=${{ vars.GCP_PROJECT_PREFIX }}-dev" \
+          -var "gcp_region=${{ vars.GCP_REGION }}"
+        working-directory: infra/terraform/environments/dev
 
   # Job for deploying to UAT/Prod environments manually via workflow_dispatch
   deploy_manual:
@@ -81,39 +70,25 @@ jobs:
           terraform_version: 1.0.0
 
       - name: Configure GCP Credentials
-        uses: google-github-actions/auth@v2
+        uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
           
-      - name: Terraform Init (${{ github.event.inputs.environment }} workspace)
-        run: |
-          terraform init
-          terraform workspace select ${{ github.event.inputs.environment }} || terraform workspace new ${{ github.event.inputs.environment }}
-        working-directory: infra/terraform
+      - name: Terraform Init (${{ github.event.inputs.environment }} environment)
+        run: terraform init
+        working-directory: infra/terraform/environments/${{ github.event.inputs.environment }}
 
       - name: Terraform Plan (${{ github.event.inputs.environment }})
         run: |
           terraform plan -no-color \
-            -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
-            -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}" \
+            -var "gcp_project_id=${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment }}" \
+            -var "gcp_region=${{ vars.GCP_REGION }}" \
             > terraform_plan_output.txt
-        working-directory: infra/terraform
-        env:
-          TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
-          TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
-          
+        working-directory: infra/terraform/environments/${{ github.event.inputs.environment }}
+
       - name: Terraform Apply (${{ github.event.inputs.environment }})
         if: github.event.inputs.approve == true || github.event.inputs.environment != 'prod' # Auto-approve for non-prod, require explicit approval for prod
         run: terraform apply -auto-approve \
-          -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
-          -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}"
-        working-directory: infra/terraform
-        env:
-          TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
-          TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
-
-      - name: Terraform Apply (Production - Manual Approval)
-        if: github.event.inputs.approve == false && github.event.inputs.environment == 'prod'
-        run: |
-          echo "Production deployment requires explicit approval. Rerun with 'approve: true'."
-          exit 1
+          -var "gcp_project_id=${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment }}" \
+          -var "gcp_region=${{ vars.GCP_REGION }}"
+        working-directory: infra/terraform/environments/${{ github.event.inputs.environment }}
