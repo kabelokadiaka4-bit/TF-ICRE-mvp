@@ -13,3 +13,10 @@ torch_geometric
 # GCP SDKs
 google-cloud-storage
 google-cloud-documentai
+google-cloud-aiplatform # For Vertex AI
+google-cloud-logging # For structured logging
+
+# --- Testing Dependencies ---
+pytest
+httpx
+pytest-asyncio

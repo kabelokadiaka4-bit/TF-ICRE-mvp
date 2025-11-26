@@ -1,0 +1,45 @@
+# .github/workflows/deploy-ml-pipelines.yaml
+name: Deploy ML Pipelines (Vertex AI)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ml-pipelines/**'
+  workflow_dispatch:
+
+jobs:
+  compile-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install KFP SDK
+        run: pip install kfp google-cloud-aiplatform
+
+      - name: Google Auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Compile Pipeline
+        run: |
+          # Set PYTHONPATH to include current directory so imports work
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/ml-pipelines
+          python ml-pipelines/pipelines/training_pipeline.py
+
+      - name: Upload to GCS (Pipeline Template)
+        uses: 'google-github-actions/upload-cloud-storage@v1'
+        with:
+          path: 'credit_scoring_pipeline.json'
+          destination: '${{ vars.GCP_PROJECT_PREFIX }}-dev-landing-zone/pipelines' # Storing in landing zone for now
+          parent: false
+
+      # Optionally, you could trigger a run here, but usually pipelines are scheduled or triggered by events.

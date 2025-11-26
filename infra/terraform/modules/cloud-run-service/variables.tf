@@ -53,8 +53,8 @@ variable "ingress_type" {
   default     = "INGRESS_TRAFFIC_INTERNAL_AND_CLOUD_LOAD_BALANCING"
 }
 
-variable "vpc_connector" {
-  description = "VPC Access Connector resource name"
+variable "vpc_connector_id" {
+  description = "The fully qualified resource name of the VPC Access Connector for VPC access."
   type        = string
-  default     = null
+  default     = null # Set to null if no VPC access is needed
 }

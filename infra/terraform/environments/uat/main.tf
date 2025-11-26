@@ -90,6 +90,26 @@ module "loan_events_topic" {
   }
 }
 
+# --- Container Registry (Artifact Registry) ---
+module "artifact_registry" {
+  source        = "../../modules/artifact-registry"
+  project_id    = var.gcp_project_id
+  location      = var.gcp_region
+  repository_id = "tf-icre-images" # Matches the ID used in GitHub Actions workflow
+  description   = "Docker images for TF-ICRE microservices in uat environment"
+  environment   = "uat"
+}
+
+# --- VPC Access Connector for Cloud Run ---
+module "vpc_connector" {
+  source        = "../../modules/vpc-connector"
+  project_id    = var.gcp_project_id
+  region        = var.gcp_region
+  connector_name = "${var.gcp_project_id}-connector"
+  network_name  = module.network.network_name
+  ip_cidr_range = "10.9.0.0/28" # Dedicated IP range for connector
+}
+
 # --- App Layer (Firestore) ---
 resource "google_firestore_database" "database" {
   project     = var.gcp_project_id

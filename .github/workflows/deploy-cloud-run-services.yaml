@@ -1,0 +1,121 @@
+# .github/workflows/deploy-cloud-run-services.yaml
+name: Deploy Cloud Run Services
+
+on:
+  workflow_run:
+    workflows: ["Build & Push Service Images"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Specific service to deploy (scoring-engine, tbml-engine, governance-engine) or ALL'
+        required: true
+        default: 'ALL'
+        type: string
+      environment:
+        description: 'Environment to deploy to (dev, uat, prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
+      # Optional input for approving production deployments
+      approve:
+        description: 'Approve production deployment?'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: 'read'
+  id-token: 'write' # For authentication to Google Cloud
+
+jobs:
+  # Job to determine deployment environment and image tag
+  prepare-deployment:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.get-image-tag.outputs.image_tag }}
+      environment: ${{ github.event.inputs.environment || 'dev' }} # Default to dev for workflow_run
+      gcp_project_id: ${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment || 'dev' }}
+      vpc_connector_id: ${{ steps.get-vpc-connector.outputs.vpc_connector_id }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get Image Tag for workflow_run
+        id: get-image-tag
+        if: github.event_name == 'workflow_run'
+        run: |
+          # Extract the SHA from the completed workflow_run event
+          # This requires fetching the workflow run artifacts or details. For simplicity,
+          # we'll assume the triggering build workflow used github.sha for the tag.
+          # A more robust solution might involve parsing workflow_run.conclusion.
+          # For now, let's just use the current commit SHA if triggered by workflow_run on main branch.
+          # This assumes the image built from the 'push' event to main corresponds to the HEAD of main.
+          # Alternatively, the build workflow could output the full image tag as an artifact.
+          echo "image_tag=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+      
+      - name: Get VPC Connector ID (Mock)
+        # In a real setup, this would query Terraform state or GCP API to get the connector ID
+        # For now, we'll use a placeholder/derived name
+        id: get-vpc-connector
+        run: |
+          # This should be dynamically fetched from terraform outputs or GCP API
+          echo "vpc_connector_id=projects/${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment || 'dev' }}/locations/${{ vars.GCP_REGION }}/connectors/${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment || 'dev' }}-connector" >> $GITHUB_OUTPUT
+
+
+  deploy-service:
+    needs: prepare-deployment
+    runs-on: ubuntu-latest
+    environment: ${{ needs.prepare-deployment.outputs.environment }}
+    strategy:
+      matrix:
+        service:
+          - scoring-engine
+          - tbml-engine
+          - governance-engine
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || 
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.service_name == 'ALL' || github.event.inputs.service_name == matrix.service))
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Deploy ${{ matrix.service }} to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ matrix.service }}
+          image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ needs.prepare-deployment.outputs.gcp_project_id }}/tf-icre-images/${{ matrix.service }}:${{ needs.prepare-deployment.outputs.image_tag || github.sha }}
+          region: ${{ vars.GCP_REGION }}
+          project_id: ${{ needs.prepare-deployment.outputs.gcp_project_id }}
+          flags: |
+            --platform managed
+            --allow-unauthenticated # Adjust as per security requirements, often handled by IAP/API Gateway
+            --memory 1Gi # Default memory, adjust per service
+            --cpu 1 # Default CPU, adjust per service
+            --min-instances 0
+            --max-instances 5
+            --vpc-connector ${{ needs.prepare-deployment.outputs.vpc_connector_id }}
+            --service-account ${{ needs.prepare-deployment.outputs.service_account_email }} # Get this from Terraform outputs
+          env_vars: |
+            GCP_PROJECT_ID=${{ needs.prepare-deployment.outputs.gcp_project_id }}
+            GCP_REGION=${{ vars.GCP_REGION }}
+            BQ_AUDIT_LOG_TABLE=audit_logs.scoring_decisions # Example for scoring engine
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} # Example for scoring engine
+            # Add other service-specific environment variables as GitHub Secrets or Actions Variables

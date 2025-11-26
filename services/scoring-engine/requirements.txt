@@ -14,3 +14,12 @@ google-cloud-aiplatform # For Vertex AI
 google-cloud-bigquery
 google-cloud-storage
 google-cloud-firestore
+google-cloud-logging # For structured logging
+
+# Gemini API for explanations
+google-generativeai
+
+# --- Testing Dependencies ---
+pytest
+httpx
+pytest-asyncio

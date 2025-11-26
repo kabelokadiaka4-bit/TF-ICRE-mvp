@@ -10,3 +10,9 @@ opa-python-client
 # GCP SDKs
 google-cloud-firestore
 google-cloud-bigquery
+google-cloud-logging # For structured logging
+
+# --- Testing Dependencies ---
+pytest
+httpx
+pytest-asyncio

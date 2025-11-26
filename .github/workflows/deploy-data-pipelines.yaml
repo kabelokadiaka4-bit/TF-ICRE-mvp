@@ -1,0 +1,48 @@
+# .github/workflows/deploy-data-pipelines.yaml
+name: Deploy Data Pipelines (Airflow)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'data-pipelines/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-dags:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Get Composer Bucket Name
+        id: get-bucket
+        run: |
+          # Retrieve the GCS bucket name for the Cloud Composer environment
+          # This assumes environment name follows convention 'tf-icre-composer-dev' in 'africa-south1'
+          ENVIRONMENT_NAME="tf-icre-composer-dev"
+          LOCATION="${{ vars.GCP_REGION }}"
+          
+          BUCKET_NAME=$(gcloud composer environments describe $ENVIRONMENT_NAME \
+            --location $LOCATION \
+            --format="value(config.dagGcsPrefix)" | sed 's/gs:\/\///' | sed 's/\/dags//')
+          
+          echo "bucket_name=$BUCKET_NAME" >> $GITHUB_OUTPUT
+
+      - name: Sync DAGs to Composer Bucket
+        run: |
+          gsutil -m rsync -r -d data-pipelines/dags gs://${{ steps.get-bucket.outputs.bucket_name }}/dags
+      
+      - name: Sync Dataflow Scripts to Composer Bucket
+        run: |
+          # Sync scripts to a 'dataflow' folder in the same bucket for access
+          gsutil -m rsync -r -d data-pipelines/dataflow gs://${{ steps.get-bucket.outputs.bucket_name }}/dataflow
