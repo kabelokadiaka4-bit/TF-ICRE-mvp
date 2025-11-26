@@ -50,11 +50,13 @@ jobs:
         run: |
           terraform init
           terraform workspace select dev || terraform workspace new dev
+        working-directory: infra/terraform
 
       - name: Terraform Apply (dev)
         run: terraform apply -auto-approve \
           -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
           -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}"
+        working-directory: infra/terraform
         env:
           TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
           TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
@@ -87,6 +89,7 @@ jobs:
         run: |
           terraform init
           terraform workspace select ${{ github.event.inputs.environment }} || terraform workspace new ${{ github.event.inputs.environment }}
+        working-directory: infra/terraform
 
       - name: Terraform Plan (${{ github.event.inputs.environment }})
         run: |
@@ -94,6 +97,7 @@ jobs:
             -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
             -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}" \
             > terraform_plan_output.txt
+        working-directory: infra/terraform
         env:
           TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
           TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
@@ -103,6 +107,7 @@ jobs:
         run: terraform apply -auto-approve \
           -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
           -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}"
+        working-directory: infra/terraform
         env:
           TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
           TF_VAR_gcp_region: ${{ vars.GCP_REGION }}

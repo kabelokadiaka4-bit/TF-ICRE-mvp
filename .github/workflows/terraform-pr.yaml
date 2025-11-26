@@ -32,16 +32,19 @@ jobs:
       - name: Terraform Fmt
         id: fmt
         run: terraform fmt -check -recursive
+        working-directory: infra/terraform
         continue-on-error: true
 
       - name: Terraform Init (dev workspace)
         run: |
           terraform init
           terraform workspace select dev || terraform workspace new dev
+        working-directory: infra/terraform
 
       - name: Terraform Validate
         id: validate
         run: terraform validate -no-color
+        working-directory: infra/terraform
 
       - name: Terraform Plan
         id: plan
@@ -50,6 +53,7 @@ jobs:
             -var "gcp_project_prefix=${{ vars.GCP_PROJECT_PREFIX || 'tf-icre' }}" \
             -var "gcp_region=${{ vars.GCP_REGION || 'africa-south1' }}" \
             > terraform_plan.txt
+        working-directory: infra/terraform
         env:
           TF_VAR_gcp_project_prefix: ${{ vars.GCP_PROJECT_PREFIX }}
           TF_VAR_gcp_region: ${{ vars.GCP_REGION }}
