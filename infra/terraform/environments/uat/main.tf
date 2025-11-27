@@ -10,6 +10,12 @@ terraform {
   }
 }
 
+# --- API Enablement ---
+module "gcp_apis" {
+  source    = "../../modules/gcp-apis"
+  project_id = var.gcp_project_id
+}
+
 # UAT environment will mirror dev initially, but potentially with more strict settings
 # Define the provider for this environment
 provider "google" {

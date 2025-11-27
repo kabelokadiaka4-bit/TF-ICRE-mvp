@@ -10,6 +10,12 @@ terraform {
   }
 }
 
+# --- API Enablement ---
+module "gcp_apis" {
+  source    = "../../modules/gcp-apis"
+  project_id = var.gcp_project_id
+}
+
 # Production environment should have stricter settings and potentially different resources.
 # Define the provider for this environment
 provider "google" {

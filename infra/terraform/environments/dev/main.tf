@@ -15,6 +15,12 @@ terraform {
   # }
 }
 
+# --- API Enablement ---
+module "gcp_apis" {
+  source    = "../../modules/gcp-apis"
+  project_id = var.gcp_project_id
+}
+
 # Define the provider for this environment
 provider "google" {
   project = var.gcp_project_id
