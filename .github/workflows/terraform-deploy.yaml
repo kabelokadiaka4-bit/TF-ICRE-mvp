@@ -53,9 +53,7 @@ jobs:
         working-directory: infra/terraform/environments/dev
 
       - name: Terraform Apply (dev)
-        run: terraform apply -auto-approve \
-          -var gcp_project_id="${{ vars.GCP_PROJECT_PREFIX }}-dev" \
-          -var gcp_region="${{ vars.GCP_REGION }}"
+        run: terraform apply -auto-approve -var gcp_project_id="${{ vars.GCP_PROJECT_PREFIX }}-dev" -var gcp_region="${{ vars.GCP_REGION }}"
         working-directory: infra/terraform/environments/dev
 
   # Job for deploying to UAT/Prod environments manually via workflow_dispatch
@@ -87,16 +85,10 @@ jobs:
         working-directory: infra/terraform/environments/${{ github.event.inputs.environment }}
 
       - name: Terraform Plan (${{ github.event.inputs.environment }})
-        run: |
-          terraform plan -no-color \
-            -var gcp_project_id="${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment }}" \
-            -var gcp_region="${{ vars.GCP_REGION }}" \
-            > terraform_plan_output.txt
+        run: terraform plan -no-color -var gcp_project_id="${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment }}" -var gcp_region="${{ vars.GCP_REGION }}" > terraform_plan_output.txt
         working-directory: infra/terraform/environments/${{ github.event.inputs.environment }}
 
       - name: Terraform Apply (${{ github.event.inputs.environment }})
         if: github.event.inputs.approve == true || github.event.inputs.environment != 'prod' # Auto-approve for non-prod, require explicit approval for prod
-        run: terraform apply -auto-approve \
-          -var gcp_project_id="${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment }}" \
-          -var gcp_region="${{ vars.GCP_REGION }}"
+        run: terraform apply -auto-approve -var gcp_project_id="${{ vars.GCP_PROJECT_PREFIX }}-${{ github.event.inputs.environment }}" -var gcp_region="${{ vars.GCP_REGION }}"
         working-directory: infra/terraform/environments/${{ github.event.inputs.environment }}
