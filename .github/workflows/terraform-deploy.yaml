@@ -31,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev # Use GitHub Environments for better security/visibility
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' # Only runs on push to main
+    permissions:
+      contents: read # Explicitly grant read permission for checkout
 
     steps:
       - name: Checkout Code

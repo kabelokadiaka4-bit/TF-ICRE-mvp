@@ -53,12 +53,6 @@ jobs:
         if: github.event_name == 'workflow_run'
         run: |
           # Extract the SHA from the completed workflow_run event
-          # This requires fetching the workflow run artifacts or details. For simplicity,
-          # we'll assume the triggering build workflow used github.sha for the tag.
-          # A more robust solution might involve parsing workflow_run.conclusion.
-          # For now, let's just use the current commit SHA if triggered by workflow_run on main branch.
-          # This assumes the image built from the 'push' event to main corresponds to the HEAD of main.
-          # Alternatively, the build workflow could output the full image tag as an artifact.
           echo "image_tag=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
       
       - name: Get VPC Connector ID (Mock)
