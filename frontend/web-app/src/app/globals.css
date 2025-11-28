@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #D0BCFF;
+  --color-primary-foreground: #381E72;
+  
+  --color-secondary: #CCC2DC;
+  --color-secondary-foreground: #332D41;
+
+  --color-tertiary: #EFB8C8;
+  --color-tertiary-foreground: #492532;
+
+  --color-error: #F2B8B5;
+  --color-error-foreground: #601410;
+
+  --color-background: #1C1B1F;
+  --color-on-background: #E6E1E5;
+
+  --color-surface: #1C1B1F;
+  --color-on-surface: #E6E1E5;
+
+  --color-surface-variant: #49454F;
+  --color-on-surface-variant: #CAC4D0;
+
+  --color-outline: #938F99;
+
+  --font-sans: var(--font-inter);
+}
+
+/* Custom Utilities for Material Elevation */
+@utility elevation-1 {
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+}
+
+@utility elevation-2 {
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
+}
+
+@utility elevation-3 {
+  box-shadow: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+:root {
+  --font-inter: "Inter", system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-sans);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-variant);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
+}
