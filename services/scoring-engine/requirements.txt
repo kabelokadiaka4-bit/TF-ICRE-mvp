@@ -1,19 +1,22 @@
 # FastAPI for building the API
 fastapi
+pydantic>=2,<3
 
 # Uvicorn for running the FastAPI server
 uvicorn
 
-# ML Frameworks mentioned in the technical document
+# ML Frameworks (only those actually used at runtime)
 scikit-learn
 xgboost
-tensorflow
+
+# Observability and rate limiting
+prometheus-fastapi-instrumentator
+slowapi
 
 # GCP SDKs for interacting with Google Cloud services
 google-cloud-aiplatform # For Vertex AI
 google-cloud-bigquery
 google-cloud-storage
-google-cloud-firestore
 google-cloud-logging # For structured logging
 
 # Gemini API for explanations

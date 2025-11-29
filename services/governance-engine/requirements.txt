@@ -1,11 +1,16 @@
 # FastAPI for building the API
 fastapi
+pydantic>=2,<3
 
 # Uvicorn for running the FastAPI server
 uvicorn
 
 # OPA client for policy decisions
 opa-python-client
+
+# Observability and rate limiting
+prometheus-fastapi-instrumentator
+slowapi
 
 # GCP SDKs
 google-cloud-firestore

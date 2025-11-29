@@ -1,10 +1,31 @@
 from fastapi import FastAPI, HTTPException, Body
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import os
 import logging
 from datetime import datetime
 import json
+
+# Metrics
+from prometheus_fastapi_instrumentator import Instrumentator
+from fastapi import Request
+from fastapi.responses import JSONResponse
+import uuid
+
+# Optional rate limiting
+ENABLE_RATE_LIMITING = os.getenv("ENABLE_RATE_LIMITING", "false").lower() == "true"
+if ENABLE_RATE_LIMITING:
+    try:
+        from slowapi import Limiter, _rate_limit_exceeded_handler
+        from slowapi.util import get_remote_address
+        from slowapi.errors import RateLimitExceeded
+        from slowapi.middleware import SlowAPIMiddleware
+        limiter = Limiter(key_func=get_remote_address, default_limits=[os.getenv("RATE_LIMIT", "100/minute")])
+    except Exception:
+        limiter = None
+else:
+    limiter = None
 
 # GCP SDKs
 from google.cloud import firestore
@@ -78,6 +99,29 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
+origins = [o.strip() for o in allowed_origins.split(",")] if allowed_origins else ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins if origins != ["*"] else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+# Rate limiting middleware (optional)
+if limiter:
+    app.state.limiter = limiter
+    from slowapi import _rate_limit_exceeded_handler  # type: ignore
+    from slowapi.errors import RateLimitExceeded  # type: ignore
+    from slowapi.middleware import SlowAPIMiddleware  # type: ignore
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+
 # --- MOCK OPA Client ---
 class MockOPAClient:
     def __init__(self):
@@ -138,14 +182,45 @@ async def log_to_bigquery_table(table_id: str, data: Dict[str, Any]):
         logger.error(f"Failed to insert into BigQuery table {table_id}: {e}")
 
 
+# Request/response middleware for request ID and timing
+@app.middleware("http")
+async def add_request_id_and_timing(request: Request, call_next):
+    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = req_id
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        logger.exception(f"Unhandled exception for request_id={req_id}")
+        return JSONResponse(status_code=500, content={"error": "Internal Server Error", "request_id": req_id})
+    response.headers["X-Request-ID"] = req_id
+    return response
+
+# Global exception handler (fallback)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    logger.exception(f"Unhandled error: {exc} request_id={req_id}")
+    return JSONResponse(status_code=500, content={"error": "Internal Server Error", "request_id": req_id})
+
 # --- FastAPI Endpoints ---
 
 @app.get("/")
 def read_root():
     return {"service": "TF-ICRE™ Governance Engine", "status": "running"}
 
-@app.post("/v1/governance/model/register")
-async def register_model(model_data: ModelMetadata):
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/ready")
+def readiness():
+    ready = all([db is not None, bq_client is not None, gcp_logger is not None])
+    if not ready:
+        raise HTTPException(status_code=503, detail="Dependencies not ready")
+    return {"status": "ready"}
+
+@app.post("/v1/governance/override")
+async def log_override_decision(override_data: OverrideDecision):
     """
     Endpoint to register a new ML model in the Pan-African Model Registry (PAMR) in Firestore.
     """

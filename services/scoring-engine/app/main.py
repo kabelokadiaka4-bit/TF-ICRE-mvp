@@ -1,10 +1,30 @@
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import os
 import logging
 import json
 from datetime import datetime
+import uuid
+
+# Metrics
+from prometheus_fastapi_instrumentator import Instrumentator
+from fastapi.responses import JSONResponse
+
+# Optional rate limiting (in-memory by default)
+ENABLE_RATE_LIMITING = os.getenv("ENABLE_RATE_LIMITING", "false").lower() == "true"
+if ENABLE_RATE_LIMITING:
+    try:
+        from slowapi import Limiter, _rate_limit_exceeded_handler
+        from slowapi.util import get_remote_address
+        from slowapi.errors import RateLimitExceeded
+        from slowapi.middleware import SlowAPIMiddleware
+        limiter = Limiter(key_func=get_remote_address, default_limits=[os.getenv("RATE_LIMIT", "100/minute")])
+    except Exception:  # Library not installed or misconfigured
+        limiter = None
+else:
+    limiter = None
 
 # GCP SDKs
 from google.cloud import bigquery
@@ -88,6 +108,29 @@ app = FastAPI(
     description="Service for Core Credit Risk scoring and explainability.",
     version="1.0.0",
 )
+
+# CORS
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
+origins = [o.strip() for o in allowed_origins.split(",")] if allowed_origins else ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins if origins != ["*"] else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+# Rate limiting middleware (optional)
+if limiter:
+    app.state.limiter = limiter
+    from slowapi import _rate_limit_exceeded_handler  # re-import for mypy friendliness
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.middleware import SlowAPIMiddleware
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
 
 # --- MOCK DATA/FUNCTIONS for demonstration until real models/data are ready ---
 MOCK_FEATURES_DB = {
@@ -177,11 +220,42 @@ async def log_decision_to_bigquery(decision_data: Dict[str, Any]):
     except Exception as e:
         logger.error(f"Failed to log decision to BigQuery/Cloud Logging: {e}")
 
+# Request/response middleware for request ID and timing
+@app.middleware("http")
+async def add_request_id_and_timing(request: Request, call_next):
+    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = req_id
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        logger.exception(f"Unhandled exception for request_id={req_id}")
+        return JSONResponse(status_code=500, content={"error": "Internal Server Error", "request_id": req_id})
+    response.headers["X-Request-ID"] = req_id
+    return response
+
+# Global exception handler (fallback)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    logger.exception(f"Unhandled error: {exc} request_id={req_id}")
+    return JSONResponse(status_code=500, content={"error": "Internal Server Error", "request_id": req_id})
+
 # --- FastAPI Endpoints ---
 
 @app.get("/")
 def read_root():
     return {"service": "TF-ICRE™ Scoring Engine", "status": "running"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/ready")
+def readiness():
+    ready = all([bq_client is not None, aiplatform is not None, gemini_model is not None, gcp_logger is not None])
+    if not ready:
+        raise HTTPException(status_code=503, detail="Dependencies not ready")
+    return {"status": "ready"}
 
 @app.post("/v1/score", response_model=ScoreResponse)
 async def generate_score(request: ScoreRequest, http_request: Request):
@@ -212,7 +286,7 @@ async def generate_score(request: ScoreRequest, http_request: Request):
     )
 
     # Generate a unique audit ID
-    audit_id = f"AUDIT-{datetime.utcnow().timestamp()}"
+    audit_id = f"AUDIT-{uuid.uuid4()}"
 
     response_data = ScoreResponse(
         entity_id=request.entity_id,
@@ -234,7 +308,8 @@ async def generate_score(request: ScoreRequest, http_request: Request):
         "loan_amount": request.loan_amount,
         "currency": request.currency,
         "raw_explanation": raw_explanation,
-        "source_ip": http_request.client.host if http_request.client else "unknown"
+        "source_ip": http_request.client.host if http_request.client else "unknown",
+        "request_id": getattr(http_request.state, "request_id", None)
     })
 
     return response_data

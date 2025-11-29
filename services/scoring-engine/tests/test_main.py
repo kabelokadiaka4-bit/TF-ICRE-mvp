@@ -43,7 +43,7 @@ with patch('google.cloud.bigquery.Client') as MockBigQueryClient, \
     MockGenerativeModel.return_value = mock_gemini_model_instance
     mock_gemini_model_instance.generate_content.return_value.text = "Mock Gemini Explanation"
 
-    from services.scoring-engine.app.main import app, ScoreRequest, ScoreResponse
+from app.main import app, ScoreRequest, ScoreResponse
 
 # Use pytest-asyncio for asynchronous tests
 @pytest.mark.asyncio
@@ -56,12 +56,12 @@ async def test_read_root():
 @pytest.mark.asyncio
 async def test_generate_score_success():
     # Patch the mock internal functions
-    with patch('services.scoring-engine.app.main.mock_fetch_historical_data', new_callable=AsyncMock) as mock_hist_data, \
-         patch('services.scoring-engine.app.main.mock_fetch_realtime_features', new_callable=AsyncMock) as mock_realtime_features, \
-         patch('services.scoring-engine.app.main.mock_invoke_model_endpoint', new_callable=AsyncMock) as mock_model_invoke, \
-         patch('services.scoring-engine.app.main.mock_get_shap_explanation', new_callable=AsyncMock) as mock_shap_explain, \
-         patch('services.scoring-engine.app.main.generate_plain_language_summary_with_gemini', new_callable=AsyncMock) as mock_gemini_summary, \
-         patch('services.scoring-engine.app.main.log_decision_to_bigquery', new_callable=AsyncMock) as mock_log_decision:
+with patch('app.main.mock_fetch_historical_data', new_callable=AsyncMock) as mock_hist_data, \
+         patch('app.main.mock_fetch_realtime_features', new_callable=AsyncMock) as mock_realtime_features, \
+         patch('app.main.mock_invoke_model_endpoint', new_callable=AsyncMock) as mock_model_invoke, \
+         patch('app.main.mock_get_shap_explanation', new_callable=AsyncMock) as mock_shap_explain, \
+         patch('app.main.generate_plain_language_summary_with_gemini', new_callable=AsyncMock) as mock_gemini_summary, \
+         patch('app.main.log_decision_to_bigquery', new_callable=AsyncMock) as mock_log_decision:
         
         # Configure mock return values
         mock_hist_data.return_value = {"historical_data_mock": True}
@@ -105,8 +105,8 @@ async def test_generate_score_success():
 
 @pytest.mark.asyncio
 async def test_get_explanation_success():
-    with patch('services.scoring-engine.app.main.mock_get_shap_explanation', new_callable=AsyncMock) as mock_shap_explain, \
-         patch('services.scoring-engine.app.main.generate_plain_language_summary_with_gemini', new_callable=AsyncMock) as mock_gemini_summary:
+with patch('app.main.mock_get_shap_explanation', new_callable=AsyncMock) as mock_shap_explain, \
+         patch('app.main.generate_plain_language_summary_with_gemini', new_callable=AsyncMock) as mock_gemini_summary:
         
         mock_shap_explain.return_value = {
             "top_positive_factors": [{"factor": "Mock Pos", "impact": "1"}],
