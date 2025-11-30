@@ -1,4 +1,4 @@
-# /infra/terraform/environments/dev/outputs.tf
+# /infra/terraform/environments/prod/outputs.tf
 
 output "network_name" {
   value = module.stack.network_name

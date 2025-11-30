@@ -2,18 +2,20 @@
 
 import { Card } from "./ui/Card";
 import { useState } from "react";
-import { Sparkles, CheckCircle2, AlertOctagon } from "lucide-react";
+import { Sparkles, CheckCircle2, AlertOctagon, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { scoringApi } from "../lib/api";
+import { ScoringService } from "../lib/api";
 import { motion } from "framer-motion";
 
 export default function ExplanationPanel() {
   const [activeTab, setActiveTab] = useState<'shap' | 'counterfactual'>('shap');
+  // Hardcoded loanId for demo. In a real app, this would come from context/props.
+  const loanId = 'loan-123';
 
-  // Fetch explanation data
-  const { data, isLoading } = useQuery({
-    queryKey: ['explanation', 'loan-123'],
-    queryFn: () => scoringApi.getExplanation('loan-123'),
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['explanation', loanId],
+    queryFn: () => ScoringService.getExplanation(loanId),
+    retry: 3,
     initialData: {
       plain_language_summary: "Acme Manufacturing demonstrates strong revenue growth and consistent payment history. However, high debt levels (2.8x equity) require monitoring. Recommend approval with covenant requiring debt reduction.",
       explanation: {
@@ -28,6 +30,10 @@ export default function ExplanationPanel() {
       }
     }
   });
+
+  if (isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-primary" /></div>;
+  if (isError) return <div className="text-error p-4">Failed to load explanation: {error?.message}</div>;
+
 
   return (
     <Card className="h-full flex flex-col">
@@ -82,9 +88,9 @@ function ShapView({ summary, positive, negative }: any) {
         <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Key Contributors</h4>
         
         {[...positive, ...negative].map((factor: any, idx: number) => {
-           const isPositive = positive.includes(factor);
-           // Extract numeric impact for bar width
-           const impactVal = parseInt(factor.impact.replace(/[^0-9]/g, '')); 
+           // Safely extract numeric impact and determine if positive
+           const impactValue = parseFloat(factor.impact.replace(/[^0-9.-]/g, ''));
+           const isPositive = impactValue > 0;
            
            return (
             <div key={idx} className="relative">
@@ -99,7 +105,7 @@ function ShapView({ summary, positive, negative }: any) {
                   {!isPositive && (
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(impactVal, 100)}%` }}
+                      animate={{ width: `${Math.min(Math.abs(impactValue), 100)}%` }}
                       className="h-full bg-error rounded-l-full"
                     />
                   )}
@@ -108,7 +114,7 @@ function ShapView({ summary, positive, negative }: any) {
                   {isPositive && (
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(impactVal, 100)}%` }}
+                      animate={{ width: `${Math.min(impactValue, 100)}%` }}
                       className="h-full bg-green-500 rounded-r-full"
                     />
                   )}

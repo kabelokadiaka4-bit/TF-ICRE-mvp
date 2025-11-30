@@ -3,11 +3,21 @@
 import { Card, CardHeader } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
-import { Download, RefreshCw, Globe, TrendingUp, PieChart, Activity, Map } from "lucide-react";
+import { Download, RefreshCw, Globe, TrendingUp, PieChart, Activity, CalendarDays, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { WorldMap, CountryRiskData } from "@/components/WorldMap";
+import { LiveTicker, TickerItem } from "@/components/LiveTicker";
+import { useState } from "react";
 
-// Mock Data
+// Mock Data - Replace with actual API calls
+const tickerData: TickerItem[] = [
+  { id: 'fx1', label: 'USD/ZAR', value: '18.52', change: '+0.15%', changeType: 'up' },
+  { id: 'com1', label: 'Gold Spot', value: '$2,020', change: '-0.3%', changeType: 'down' },
+  { id: 'com2', label: 'Crude Oil', value: '$78.23', change: '+1.2%', changeType: 'up' },
+  { id: 'fx2', label: 'EUR/KES', value: '158.70', change: '0.0%', changeType: 'neutral' },
+];
+
 const trendData = [
   { name: 'Jan', pd: 4.2, lgd: 30 },
   { name: 'Feb', pd: 4.5, lgd: 32 },
@@ -24,7 +34,17 @@ const riskDistribution = [
   { name: 'Critical', value: 5, color: '#ef4444' },
 ];
 
+const africaRiskData: CountryRiskData[] = [
+  { country: 'South Africa', riskLevel: 'medium' },
+  { country: 'Nigeria', riskLevel: 'high' },
+  { country: 'Kenya', riskLevel: 'medium' },
+  { country: 'Egypt', riskLevel: 'critical' },
+  { country: 'Ghana', riskLevel: 'low' },
+];
+
 export default function ExecutivePage() {
+  const [dateRange, setDateRange] = useState('Last 6 Months'); // Mock state
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -40,6 +60,7 @@ export default function ExecutivePage() {
           <p className="text-on-surface-variant mt-1">Portfolio performance, risk exposure, and strategic insights.</p>
         </div>
         <div className="flex gap-3">
+           <LiveTicker data={tickerData} className="w-64" /> {/* Live Ticker Integration */}
            <Button variant="outline" leftIcon={<RefreshCw className="w-4 h-4" />}>Refresh</Button>
            <Button leftIcon={<Download className="w-4 h-4" />}>Export Report</Button>
         </div>
@@ -79,25 +100,21 @@ export default function ExecutivePage() {
 
       {/* Map Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 min-h-[400px] relative overflow-hidden" delay={0.5}>
-          <CardHeader title="Pan-African Risk Map" subtitle="Concentration risk by jurisdiction" />
-          <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
-             <Map className="w-64 h-64 text-primary" />
-          </div>
-          <div className="grid grid-cols-2 gap-4 relative z-10 mt-10">
-             {/* Mock overlays for countries */}
-             <div className="bg-surface/80 backdrop-blur p-3 rounded-xl border border-white/10 absolute top-10 left-20">
-                <div className="text-xs font-bold">South Africa</div>
-                <div className="text-green-400 text-sm font-bold">Low Risk</div>
-             </div>
-             <div className="bg-surface/80 backdrop-blur p-3 rounded-xl border border-white/10 absolute top-40 right-40">
-                <div className="text-xs font-bold">Kenya</div>
-                <div className="text-yellow-400 text-sm font-bold">Moderate</div>
-             </div>
-             <div className="bg-surface/80 backdrop-blur p-3 rounded-xl border border-white/10 absolute bottom-20 left-40">
-                <div className="text-xs font-bold">Nigeria</div>
-                <div className="text-red-400 text-sm font-bold">Elevated</div>
-             </div>
+        <Card className="lg:col-span-2 min-h-[400px]" delay={0.5}>
+          <CardHeader 
+            title="Pan-African Risk Map" 
+            subtitle="Concentration risk by jurisdiction" 
+            action={
+              <div className="relative">
+                <Button variant="outline" size="sm" rightIcon={<ChevronDown className="w-4 h-4" />}>
+                  <CalendarDays className="w-4 h-4 mr-2" /> {dateRange}
+                </Button>
+                {/* Dropdown for date range selection would go here */}
+              </div>
+            }
+          />
+          <div className="h-[300px] -mt-4"> {/* Adjusted height for map */}
+             <WorldMap riskData={africaRiskData} /> {/* WorldMap Integration */}
           </div>
         </Card>
 
@@ -121,9 +138,16 @@ export default function ExecutivePage() {
           <CardHeader 
             title="Risk Trend Analysis" 
             subtitle="6-month Probability of Default (PD) vs Loss Given Default (LGD)"
+            action={
+              <div className="relative">
+                <Button variant="outline" size="sm" rightIcon={<ChevronDown className="w-4 h-4" />}>
+                  <CalendarDays className="w-4 h-4 mr-2" /> {dateRange}
+                </Button>
+              </div>
+            }
           />
           <ResponsiveContainer width="100%" height="85%">
-            <AreaChart data={trendData}>
+            <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorPd" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#D0BCFF" stopOpacity={0.3}/>

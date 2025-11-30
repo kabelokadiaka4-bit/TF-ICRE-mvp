@@ -6,32 +6,40 @@ import { Gauge } from "./ui/Gauge";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Activity, ShieldAlert, TrendingUp, AlertTriangle, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { scoringApi } from "../lib/api";
+import { ScoringService } from "../lib/api";
 
 export default function ScorecardView() {
-  // Fetch score data
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['score', 'entity-123'], // Hardcoded entity for demo
-    queryFn: () => scoringApi.getScore('entity-123'),
-    // Mock data fallback for demo if API fails/is not running
+  // Hardcoded entity for demo. In a real app, this would come from props/context/route.
+  const entityId = 'entity-123'; 
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['score', entityId],
+    queryFn: () => ScoringService.getScore(entityId),
+    retry: 3,
+    // Keep initialData for development experience if backend is not yet fully stable
     initialData: {
+      entity_id: entityId,
       score: 680,
       composite_rating: "B+",
       pd_12m: 0.08,
       lgd: 0.35,
       ead_usd: 450000,
-      tbml_score: 45 // Adding this field even if not in standard response yet
+      tbml_score: 45, // Assuming backend provides this
+      recommendation: "APPROVED",
+      plain_language_explanation: "Initial mock explanation.",
+      top_positive_factors: [],
+      top_negative_factors: [],
+      audit_id: "mock-audit-123"
     }
   });
 
   if (isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-primary" /></div>;
-  if (isError) return <div className="text-error p-4">Failed to load scorecard.</div>;
+  if (isError) return <div className="text-error p-4">Failed to load scorecard: {error?.message}</div>;
 
   return (
     <Card className="h-full flex flex-col gap-6">
       <CardHeader
         title="Composite Credit Rating"
-        subtitle="Multi-dimensional risk assessment"
+        subtitle={`Entity: ${data.entity_id}`}
         action={
           <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold">
             AI Confidence: 87%
@@ -46,7 +54,7 @@ export default function ScorecardView() {
           <Gauge value={data.score} label="Score" color="#D0BCFF" size={140} />
           <div className="mt-4 text-center">
             <div className="text-4xl font-bold text-primary">{data.composite_rating}</div>
-            <div className="text-xs text-on-surface-variant uppercase tracking-wider mt-1">Moderate Risk</div>
+            <div className="text-xs text-on-surface-variant uppercase tracking-wider mt-1">{data.recommendation}</div>
           </div>
         </div>
 
@@ -83,7 +91,7 @@ export default function ScorecardView() {
         </div>
       </div>
 
-      {/* Component Breakdown */}
+      {/* Component Breakdown - Mocked for now, integrate with real backend explanations later */}
       <div className="space-y-4 mt-2">
         <h4 className="text-sm font-bold text-on-surface-variant uppercase tracking-wider border-b border-white/5 pb-2">
           Score Components

@@ -1,6 +1,5 @@
 # FastAPI for building the API
 fastapi
-pydantic>=2,<3
 
 # Uvicorn for running the FastAPI server
 uvicorn
@@ -10,10 +9,6 @@ uvicorn
 # Specific versions should be pinned based on compatibility.
 torch
 torch_geometric
-
-# Observability and rate limiting
-prometheus-fastapi-instrumentator
-slowapi
 
 # GCP SDKs
 google-cloud-storage
@@ -25,3 +20,7 @@ google-cloud-logging # For structured logging
 pytest
 httpx
 pytest-asyncio
+
+# --- New Production Dependencies ---
+prometheus-fastapi-instrumentator
+slowapi

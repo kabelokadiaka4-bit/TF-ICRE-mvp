@@ -13,11 +13,15 @@ import {
   AlertTriangle, 
   Activity, 
   FileText, 
-  Settings 
+  Settings,
+  Database,
+  CheckCircle2,
+  Users
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
+import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardLayout({
   children,
@@ -26,6 +30,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { hasRole } = useAuth();
 
   const navSections = [
     {
@@ -37,6 +42,13 @@ export default function DashboardLayout({
       ]
     },
     {
+      title: "Data Management",
+      items: [
+        { href: "/data/ingestion", label: "Data Ingestion", icon: Database },
+        { href: "/data/quality", label: "Data Quality", icon: CheckCircle2 },
+      ]
+    },
+    {
       title: "Intelligence",
       items: [
         { href: "/alerts", label: "TBML Alerts", icon: AlertTriangle },
@@ -44,12 +56,13 @@ export default function DashboardLayout({
         { href: "/reports", label: "Reports", icon: FileText },
       ]
     },
-    {
-      title: "System",
+    ...(hasRole("admin") ? [{
+      title: "Admin",
       items: [
-        { href: "/settings", label: "Settings", icon: Settings },
+        { href: "/admin/users", label: "User Management", icon: Users },
+        { href: "/admin/settings", label: "System Settings", icon: Settings },
       ]
-    }
+    }] : [])
   ];
 
   return (

@@ -4,9 +4,10 @@ import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Database, ShieldCheck } from "lucide-react";
+import { Database, ShieldCheck, Search, Filter, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { governanceApi } from "@/lib/api";
+import { GovernanceService } from "@/lib/api";
+import { PolicyEditor } from "@/components/PolicyEditor";
 
 export default function GovernancePage() {
   const [activeTab, setActiveTab] = useState("registry");
@@ -48,7 +49,7 @@ export default function GovernancePage() {
 function ModelRegistryView() {
   const { data: models, isLoading } = useQuery({
     queryKey: ['models'],
-    queryFn: governanceApi.getModels,
+    queryFn: GovernanceService.getModels,
     initialData: [
         { id: "SME_Credit_Scoring_XGB_v2.3.1", status: "PRODUCTION", owner: "Risk Analytics", auc: 0.823, bias: "PASS" },
         { id: "TBML_Graph_Network_v1.0.0", status: "STAGING", owner: "FinCrime Unit", auc: 0.78, bias: "PASS" },
@@ -96,57 +97,142 @@ function ModelRegistryView() {
 }
 
 function PolicyEngineView() {
-  return (
-    <Card>
-      <CardHeader title="Regulations-as-Code Engine" subtitle="Executable compliance rules" action={<Button size="sm">New Rule</Button>} />
-      <div className="grid gap-4">
-        <PolicyCard 
-          title="NCA Affordability Check" 
-          code="IF debt_to_income > 0.45 THEN REJECT" 
-          active 
-          region="South Africa" 
-        />
-        <PolicyCard 
-          title="POPIA Data Sovereignty" 
-          code="resource.location MUST BE IN ['africa-south1']" 
-          active 
-          region="Pan-African" 
-        />
-        <PolicyCard 
-          title="AML Threshold Monitoring" 
-          code="IF transaction_amount > 10000 AND risk_score > 70 THEN FLAG_STR" 
-          active 
-          region="Global" 
-        />
-      </div>
-    </Card>
-  );
+  const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null);
+
+  const policies = [
+    { id: "nca_affordability", name: "NCA Affordability Check", region: "South Africa", active: true },
+    { id: "popia_sovereignty", name: "POPIA Data Sovereignty", region: "Pan-African", active: true },
+    { id: "aml_threshold", name: "AML Threshold Monitoring", region: "Global", active: true },
+  ];
+
+  const exampleRego = `package credit.policy
+
+default allow = false
+
+# Block loans if Debt-to-Income ratio > 45%
+allow {
+    input.loan.dti < 0.45
+    input.borrower.credit_score >= 600
 }
 
-function PolicyCard({ title, code, active, region }: any) {
+# High-value loans require manual approval
+allow {
+    input.loan.amount > 1000000
+    input.approval.level == "senior_manager"
+}`;
+
   return (
-    <div className="p-4 rounded-xl bg-surface-variant/5 border border-white/5 flex justify-between items-center">
-      <div>
-        <div className="flex items-center gap-3 mb-1">
-          <h4 className="text-sm font-bold text-on-surface">{title}</h4>
-          <Badge variant="info">{region}</Badge>
-          {active && <Badge variant="success">Active</Badge>}
-        </div>
-        <code className="text-xs text-primary bg-surface-variant/20 px-2 py-1 rounded">{code}</code>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+      {/* Policy List */}
+      <div className="lg:col-span-1 flex flex-col gap-4">
+        <Card className="flex-1 overflow-y-auto">
+            <CardHeader title="Policy Library" subtitle="Select a policy to edit" action={<Button size="sm" variant="ghost"><Filter className="w-4 h-4"/></Button>}/>
+            <div className="space-y-2">
+                {policies.map(p => (
+                    <div 
+                        key={p.id}
+                        onClick={() => setSelectedPolicy(p.id)}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                            selectedPolicy === p.id 
+                                ? "bg-primary/10 border-primary/50" 
+                                : "bg-surface-variant/5 border-white/5 hover:bg-surface-variant/10"
+                        }`}
+                    >
+                        <div className="flex justify-between items-start">
+                            <span className="font-medium text-sm text-on-surface">{p.name}</span>
+                            {p.active && <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5"/>}
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                            <Badge variant="info" className="text-[10px] px-1.5 py-0">{p.region}</Badge>
+                            <span className="text-[10px] font-mono text-on-surface-variant">{p.id}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </Card>
       </div>
-      <Button variant="ghost" size="sm">Edit</Button>
+
+      {/* Editor */}
+      <div className="lg:col-span-2">
+        {selectedPolicy ? (
+            <PolicyEditor policyId={selectedPolicy} initialCode={exampleRego} />
+        ) : (
+            <Card className="h-full flex items-center justify-center text-on-surface-variant">
+                <div className="text-center">
+                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>Select a policy to view code</p>
+                </div>
+            </Card>
+        )}
+      </div>
     </div>
   );
 }
 
 function AuditTrailView() {
+  const [filters, setFilters] = useState({ userId: "" });
+  
+  // Mock data fetch
+  const { data: auditLogs, isLoading } = useQuery({
+      queryKey: ['audit', filters],
+      queryFn: () => GovernanceService.getAuditTrail(filters),
+      initialData: {
+          results: [
+              { timestamp: "2024-11-25T10:30:00Z", event_type: "credit_decision", actor: { email: "analyst@dbsa.org" }, action: "APPROVE", resource: "loan-123" },
+              { timestamp: "2024-11-25T11:15:00Z", event_type: "policy_update", actor: { email: "admin@dbsa.org" }, action: "WRITE", resource: "policy:nca_affordability" },
+              { timestamp: "2024-11-25T12:05:00Z", event_type: "model_override", actor: { email: "manager@dbsa.org" }, action: "OVERRIDE", resource: "loan-456" },
+          ]
+      }
+  });
+
   return (
     <Card>
-      <CardHeader title="Immutable Audit Log" subtitle="Blockchain-anchored record of all decisions" />
-      <div className="text-center py-12 text-on-surface-variant">
-        <ShieldCheck className="w-12 h-12 mx-auto mb-3 opacity-50" />
-        <p>Audit logs are immutable and stored in BigQuery.</p>
-        <Button variant="outline" className="mt-4">Query Logs</Button>
+      <CardHeader 
+        title="Immutable Audit Log" 
+        subtitle="Blockchain-anchored record of all decisions" 
+        action={
+            <div className="flex gap-2">
+                <div className="relative">
+                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-on-surface-variant"/>
+                    <input 
+                        placeholder="Search by User/Resource" 
+                        className="pl-9 pr-4 py-2 bg-surface-variant/10 border border-white/5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 w-64"
+                    />
+                </div>
+                <Button variant="outline" leftIcon={<Filter className="w-4 h-4"/>}>Filter</Button>
+            </div>
+        }
+      />
+      
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+            <thead className="text-xs text-on-surface-variant uppercase bg-surface-variant/10 border-b border-white/5">
+                <tr>
+                    <th className="px-6 py-3">Timestamp</th>
+                    <th className="px-6 py-3">Event Type</th>
+                    <th className="px-6 py-3">Actor</th>
+                    <th className="px-6 py-3">Action</th>
+                    <th className="px-6 py-3">Resource</th>
+                    <th className="px-6 py-3">Verification</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+                {auditLogs.results.map((log: any, i: number) => (
+                    <tr key={i} className="hover:bg-surface-variant/5">
+                        <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
+                        <td className="px-6 py-4"><Badge variant="neutral">{log.event_type}</Badge></td>
+                        <td className="px-6 py-4 font-medium text-on-surface">{log.actor.email}</td>
+                        <td className="px-6 py-4 font-bold text-xs">{log.action}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-on-surface-variant">{log.resource}</td>
+                        <td className="px-6 py-4">
+                            <div className="flex items-center gap-1 text-green-400 text-xs font-medium">
+                                <ShieldCheck className="w-3 h-3" /> Verified
+                            </div>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
       </div>
     </Card>
   );
