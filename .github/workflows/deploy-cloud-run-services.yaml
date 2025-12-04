@@ -74,9 +74,6 @@ jobs:
           - scoring-engine
           - tbml-engine
           - governance-engine
-    if: |
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || 
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.service_name == 'ALL' || github.event.inputs.service_name == matrix.service))
 
     steps:
       - name: Checkout Code
@@ -92,6 +89,9 @@ jobs:
 
       - name: Deploy ${{ matrix.service }} to Cloud Run
         id: deploy
+        if: |
+          (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || 
+          (github.event_name == 'workflow_dispatch' && (github.event.inputs.service_name == 'ALL' || github.event.inputs.service_name == matrix.service))
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ matrix.service }}
