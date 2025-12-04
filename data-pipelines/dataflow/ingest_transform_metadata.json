@@ -1,0 +1,20 @@
+{
+  "name": "Ingest Transform Pipeline",
+  "description": "A Dataflow Flex Template for ingesting and transforming loan data.",
+  "parameters": [
+    {
+      "name": "input",
+      "label": "Input GCS Path",
+      "helpText": "GCS path to the input CSV file(s).",
+      "isRequired": true,
+      "regex": "^gs://.*$"
+    },
+    {
+      "name": "output",
+      "label": "Output GCS Path",
+      "helpText": "GCS path for the output JSONL file(s).",
+      "isRequired": true,
+      "regex": "^gs://.*$"
+    }
+  ]
+}

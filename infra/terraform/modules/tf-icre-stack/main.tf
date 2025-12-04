@@ -134,4 +134,10 @@ resource "google_composer_environment" "orchestrator" {
       kms_key_name = module.security.cmek_key_id
     }
   }
+
+  timeouts {
+    create = "60m"
+    update = "60m"
+    delete = "60m"
+  }
 }

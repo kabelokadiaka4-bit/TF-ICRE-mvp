@@ -219,8 +219,8 @@ def readiness():
         raise HTTPException(status_code=503, detail="Dependencies not ready")
     return {"status": "ready"}
 
-@app.post("/v1/governance/override")
-async def log_override_decision(override_data: OverrideDecision):
+@app.post("/v1/governance/register_model")
+async def register_model(model_data: ModelMetadata):
     """
     Endpoint to register a new ML model in the Pan-African Model Registry (PAMR) in Firestore.
     """
@@ -235,7 +235,7 @@ async def log_override_decision(override_data: OverrideDecision):
         logger.error(f"Error registering model: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to register model: {e}")
 
-@post("/v1/governance/override")
+@app.post("/v1/governance/override")
 async def log_override_decision(override_data: OverrideDecision):
     """
     Endpoint to log a manual override of an AI decision to Firestore (immutable) and BigQuery (analytics).

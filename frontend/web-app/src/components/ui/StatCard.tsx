@@ -2,6 +2,7 @@
 
 import { Card } from "./Card";
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import clsx from "clsx"; // Added missing import
 
 interface StatCardProps {
   title: string;
@@ -13,18 +14,31 @@ interface StatCardProps {
   };
   icon?: React.ReactNode;
   delay?: number;
+  onClick?: () => void;
+  statusColor?: string;
 }
 
-export function StatCard({ title, value, trend, icon, delay = 0 }: StatCardProps) {
+export function StatCard({ title, value, trend, icon, delay = 0, onClick, statusColor }: StatCardProps) {
   return (
-    <Card glow className="flex flex-col justify-between min-h-[140px]" transition={{ duration: 0.5, delay }}>
+    <Card 
+      glow 
+      className={clsx(
+        "flex flex-col justify-between min-h-[140px]",
+        onClick && "cursor-pointer hover:shadow-lg hover:shadow-primary/10 transition-shadow",
+        statusColor // Apply statusColor to the card itself if needed, or to a specific element within
+      )}
+      transition={{ duration: 0.5, delay }}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
       <div className="flex items-start justify-between">
         <span className="text-sm font-medium text-on-surface-variant">{title}</span>
         {icon && <div className="p-2 rounded-lg bg-surface-variant/20 text-primary">{icon}</div>}
       </div>
       
       <div>
-        <div className="text-3xl font-bold text-on-surface tracking-tight mb-2">{value}</div>
+        <div className={clsx("text-3xl font-bold text-on-surface tracking-tight mb-2", statusColor)}>{value}</div>
         {trend && (
           <div className="flex items-center gap-2 text-xs">
             <span className={`flex items-center font-medium ${

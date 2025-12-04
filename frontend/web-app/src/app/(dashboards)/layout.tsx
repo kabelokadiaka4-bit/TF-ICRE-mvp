@@ -16,7 +16,8 @@ import {
   Settings,
   Database,
   CheckCircle2,
-  Users
+  Users,
+  Home
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,6 +34,12 @@ export default function DashboardLayout({
   const { hasRole } = useAuth();
 
   const navSections = [
+    {
+      title: "Main",
+      items: [
+        { href: "/dashboard", label: "Overview", icon: Home },
+      ]
+    },
     {
       title: "Workspaces",
       items: [

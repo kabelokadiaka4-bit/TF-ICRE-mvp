@@ -1,0 +1,67 @@
+# .github/workflows/sync-dags.yaml
+name: Sync Airflow DAGs to Composer
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'data-pipelines/dags/**' # Trigger when DAGs change
+  workflow_dispatch:
+    inputs:
+      gcp_project_id:
+        description: 'GCP Project ID'
+        required: true
+        type: string
+        default: 'tf-icre'
+      gcp_region:
+        description: 'GCP Region'
+        required: true
+        type: string
+        default: 'africa-south1'
+      composer_environment_name:
+        description: 'Composer Environment Name'
+        required: true
+        type: string
+        default: 'tf-icre-composer-dev'
+
+permissions:
+  contents: 'read'
+  id-token: 'write' # For authentication to Google Cloud
+
+jobs:
+  sync-dags:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}' # Ensure this secret is configured
+
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Get Composer DAGs Bucket
+        id: get-dags-bucket
+        run: |
+          COMPOSER_DAGS_BUCKET=$(gcloud composer environments describe \
+            ${{ github.event.inputs.composer_environment_name || 'tf-icre-composer-dev' }} \
+            --project=${{ github.event.inputs.gcp_project_id || 'tf-icre' }} \
+            --location=${{ github.event.inputs.gcp_region || 'africa-south1' }} \
+            --format="value(config.dagGcsPrefix)")
+          echo "COMPOSER_DAGS_BUCKET=$COMPOSER_DAGS_BUCKET" >> $GITHUB_OUTPUT
+          echo "Found Composer DAGs bucket: $COMPOSER_DAGS_BUCKET"
+
+      - name: Copy DAGs to Composer Bucket
+        run: |
+          if [ -z "${{ steps.get-dags-bucket.outputs.COMPOSER_DAGS_BUCKET }}" ]; then
+            echo "Error: Composer DAGs bucket not found. Cannot sync DAGs."
+            exit 1
+          fi
+          gsutil cp -r data-pipelines/dags/* "${{ steps.get-dags-bucket.outputs.COMPOSER_DAGS_BUCKET }}"/ 
+        env:
+          CLOUDSDK_CORE_PROJECT: ${{ github.event.inputs.gcp_project_id || 'tf-icre' }}

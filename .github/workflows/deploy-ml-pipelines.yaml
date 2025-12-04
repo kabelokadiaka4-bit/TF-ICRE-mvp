@@ -1,5 +1,5 @@
 # .github/workflows/deploy-ml-pipelines.yaml
-name: Deploy ML Pipelines (Vertex AI)
+name: Compile and Deploy ML Pipelines (Vertex AI)
 
 on:
   push:
@@ -8,6 +8,21 @@ on:
     paths:
       - 'ml-pipelines/**'
   workflow_dispatch:
+    inputs:
+      gcp_project_id:
+        description: 'GCP Project ID'
+        required: true
+        type: string
+        default: 'tf-icre'
+      gcp_region:
+        description: 'GCP Region'
+        required: true
+        type: string
+        default: 'africa-south1'
+
+permissions:
+  contents: 'read'
+  id-token: 'write' # For authentication to Google Cloud
 
 jobs:
   compile-and-upload:
@@ -21,25 +36,43 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install KFP SDK
+      - name: Install KFP SDK and Google Cloud AI Platform
         run: pip install kfp google-cloud-aiplatform
 
       - name: Google Auth
         uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          credentials_json: '${{ secrets.GCP_SA_KEY }}' # Ensure this secret is configured in GitHub
 
-      - name: Compile Pipeline
+      - name: Compile and Upload Credit Scoring Pipeline
         run: |
           # Set PYTHONPATH to include current directory so imports work
           export PYTHONPATH=$PYTHONPATH:$(pwd)/ml-pipelines
-          python ml-pipelines/pipelines/training_pipeline.py
+          python ml-pipelines/pipelines/training_pipeline.py # This compiles credit_scoring_pipeline.json and tbml_gnn_pipeline.json
 
-      - name: Upload to GCS (Pipeline Template)
+      - name: Upload Credit Scoring Pipeline to GCS
         uses: 'google-github-actions/upload-cloud-storage@v1'
         with:
           path: 'credit_scoring_pipeline.json'
-          destination: '${{ vars.GCP_PROJECT_PREFIX }}-dev-landing-zone/pipelines' # Storing in landing zone for now
+          destination: 'tf-icre-processed-data/pipelines/' # Destination in GCS for compiled pipeline
           parent: false
 
-      # Optionally, you could trigger a run here, but usually pipelines are scheduled or triggered by events.
+      - name: Upload TBML GNN Pipeline to GCS
+        uses: 'google-github-actions/upload-cloud-storage@v1'
+        with:
+          path: 'tbml_gnn_pipeline.json'
+          destination: 'tf-icre-processed-data/pipelines/' # Destination in GCS for compiled pipeline
+          parent: false
+
+      # Note: Deploying pipelines to Vertex AI is typically done by creating PipelineJobs.
+      # This workflow compiles and uploads the definitions. Triggering a run is a separate step.
+      # Example of how to create a pipeline run (can be added as a separate job or manual trigger):
+      # - name: Create Vertex AI Pipeline Run (Optional)
+      #   run: |
+      #     gcloud ai pipelines runs create \
+      #       --display-name="credit-scoring-pipeline-run-${{ github.sha }}" \
+      #       --pipeline-root="gs://tf-icre-processed-data/pipeline_root" \
+      #       --template-path="gs://tf-icre-processed-data/pipelines/credit_scoring_pipeline.json" \
+      #       --parameter-values="project_id=${{ github.event.inputs.gcp_project_id || 'tf-icre' }},region=${{ github.event.inputs.gcp_region || 'africa-south1' }},dataset_id=clean_data,table_id=loans" \
+      #       --region=${{ github.event.inputs.gcp_region || 'africa-south1' }} \
+      #       --project=${{ github.event.inputs.gcp_project_id || 'tf-icre' }}

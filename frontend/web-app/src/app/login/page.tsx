@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, MultiFactorResolver, FirebaseError } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -26,8 +26,15 @@ export default function LoginPage() {
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
       }
-      router.push("/");
+      router.push("/org-select");
     } catch (err: any) {
+      if (err instanceof FirebaseError && err.code === "auth/multi-factor-auth-required") {
+        const resolver = err.resolver; // MultiFactorResolver type
+        sessionStorage.setItem("mfaResolver", JSON.stringify(resolver.toJSON()));
+        router.push("/mfa");
+        return;
+      }
+      
       // Improve error messages
       let msg = err.message;
       if (msg.includes("auth/invalid-email")) msg = "Invalid email address.";

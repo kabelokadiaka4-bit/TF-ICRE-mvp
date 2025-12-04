@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.operators.dataflow import DataflowCreatePythonJobOperator
+from airflow.providers.google.cloud.operators.dataflow import DataflowFlexTemplateOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.sensors.gcs import GCSObjectExistenceSensor
 
@@ -39,19 +39,20 @@ with DAG(
 
     # Task 2: Run Dataflow Job (Validation & Cleaning)
     # This cleans the raw CSV and outputs a JSONL file ready for BQ
-    run_dataflow_cleaning = DataflowCreatePythonJobOperator(
+    run_dataflow_cleaning = DataflowFlexTemplateOperator(
         task_id='run_dataflow_cleaning',
-        py_file='gs://{{ var.value.composer_bucket }}/dataflow/ingest_transform.py',
-        job_name='tf-icre-cleaning-{{ ds_nodash }}',
-        options={
-            'input': 'gs://{{ var.value.landing_bucket }}/raw/loans/{{ ds_nodash }}/loans_data.csv',
-            'output': 'gs://{{ var.value.processed_bucket }}/clean/loans/{{ ds_nodash }}/cleaned_data',
-            'project': '{{ var.value.gcp_project_id }}',
-            'region': '{{ var.value.gcp_region }}',
-            'temp_location': 'gs://{{ var.value.processed_bucket }}/temp',
-            'staging_location': 'gs://{{ var.value.processed_bucket }}/staging',
-        },
+        project_id='{{ var.value.gcp_project_id }}',
         location='{{ var.value.gcp_region }}',
+        body={
+            "launchParameter": {
+                "jobName": "tf-icre-flex-cleaning-{{ ds_nodash }}",
+                "containerSpecGcsPath": "gs://tf-icre-processed-data/dataflow/templates/ingest_transform_template.json",
+                "parameters": {
+                    "input": "gs://{{ var.value.landing_bucket }}/raw/loans/{{ ds_nodash }}/loans_data.csv",
+                    "output": "gs://{{ var.value.processed_bucket }}/clean/loans/{{ ds_nodash }}/cleaned_data"
+                }
+            }
+        },
     )
 
     # Task 3: Load Cleaned Data into BigQuery
