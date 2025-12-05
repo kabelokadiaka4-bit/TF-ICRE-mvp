@@ -43,7 +43,7 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}' # Ensure this secret is configured
 
       - name: Set up Cloud SDK
-        uses: 'google-github-actions/setup-gcloud@v2'
+        uses: 'google-github-actions/setup-gcloud@v3'
 
       - name: Get Composer DAGs Bucket
         id: get-dags-bucket
