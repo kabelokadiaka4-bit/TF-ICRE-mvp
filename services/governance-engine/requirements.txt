@@ -9,7 +9,7 @@ opa-python-client==1.0.3
 
 # GCP SDKs
 google-cloud-firestore==2.14.0
-google-cloud-bigquery==3.17.0
+google-cloud-bigquery==3.38.0
 google-cloud-logging==3.9.0
 
 # Testing
