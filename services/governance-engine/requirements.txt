@@ -5,7 +5,7 @@ fastapi==0.109.0
 uvicorn==0.27.0
 
 # OPA client
-opa-python-client==1.0.3
+opa-python-client==2.0.3
 
 # GCP SDKs
 google-cloud-firestore==2.14.0
