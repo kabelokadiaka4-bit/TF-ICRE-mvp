@@ -10,7 +10,7 @@ torch_geometric==2.4.0
 
 # GCP SDKs
 google-cloud-storage==2.14.0
-google-cloud-documentai==2.23.0
+google-cloud-documentai==3.7.0
 google-cloud-aiplatform==1.40.0
 google-cloud-logging==3.9.0
 
