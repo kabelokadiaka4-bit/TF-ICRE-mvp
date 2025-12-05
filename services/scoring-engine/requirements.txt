@@ -5,7 +5,7 @@ fastapi==0.109.0
 uvicorn==0.27.0
 
 # ML Frameworks
-scikit-learn==1.4.0
+scikit-learn==1.7.2
 xgboost==2.0.3
 # tensorflow removed as per modernization plan
 
