@@ -92,7 +92,7 @@ jobs:
         if: |
           (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || 
           (github.event_name == 'workflow_dispatch' && (github.event.inputs.service_name == 'ALL' || github.event.inputs.service_name == matrix.service))
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ matrix.service }}
           image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ needs.prepare-deployment.outputs.gcp_project_id }}/tf-icre-images/${{ matrix.service }}:${{ needs.prepare-deployment.outputs.image_tag || github.sha }}
