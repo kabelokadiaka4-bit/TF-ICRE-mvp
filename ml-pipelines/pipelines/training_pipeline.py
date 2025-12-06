@@ -73,7 +73,7 @@ def tbml_gnn_training_pipeline(
     
     # Step 2: Train GNN Model
     train_gnn_op = train_gnn_model(
-        input_data=dsl.importer(artifact_uri="gs://tf-icre-processed-data/mock_graph_data", artifact_type="Dataset"),
+        input_data=dsl.importer(artifact_uri="gs://tf-icre-processed-data/mock_graph_data", artifact_class="Dataset"),
     )
     
     # Step 3: Evaluate GNN Model (Placeholder)
