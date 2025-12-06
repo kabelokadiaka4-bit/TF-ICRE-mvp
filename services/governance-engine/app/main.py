@@ -66,6 +66,7 @@ except Exception as e:
 
 # Define data models
 class ModelMetadata(BaseModel):
+    """Data model for model metadata."""
     model_id: str
     model_name: str
     owner: str
@@ -77,6 +78,7 @@ class ModelMetadata(BaseModel):
     # Add other fields as per deep dive (e.g., training_data, monitoring, regulatory_compliance)
 
 class OverrideDecision(BaseModel):
+    """Data model for an override decision."""
     loan_id: str
     original_decision: str
     override_decision: str
@@ -86,6 +88,7 @@ class OverrideDecision(BaseModel):
     loan_amount_usd: float = None
 
 class PolicyRule(BaseModel):
+    """Data model for a policy rule."""
     policy_id: str
     rule_name: str
     rule_code: str # e.g., Rego policy code snippet
@@ -124,13 +127,22 @@ if limiter:
 
 # --- MOCK OPA Client ---
 class MockOPAClient:
+    """A mock OPA client for demonstration purposes."""
     def __init__(self):
+        """Initializes the mock OPA client."""
         self.policies = {
             "nca_affordability": "data.loan.dti < 0.45",
             "popia_data_sovereignty": "data.resource.location == 'africa-south1'",
         }
 
     async def evaluate_policy(self, policy_id: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Evaluates a policy with the given input data.
+        Args:
+            policy_id: The ID of the policy to evaluate.
+            input_data: The input data for the policy evaluation.
+        Returns:
+            A dictionary with the result of the policy evaluation.
+        """
         logger.info(f"Mock OPA evaluating policy: {policy_id} with input: {input_data}")
         # Simple mock evaluation
         if policy_id == "nca_affordability":
@@ -148,6 +160,13 @@ class MockOPAClient:
         return {"result": {"allow": True, "reason": "Policy not found, default allow"}}
 
     async def update_policy(self, policy_id: str, new_rule_code: str):
+        """Updates a policy with a new rule code.
+        Args:
+            policy_id: The ID of the policy to update.
+            new_rule_code: The new rule code for the policy.
+        Returns:
+            A dictionary with the status of the policy update.
+        """
         logger.info(f"Mock OPA updating policy: {policy_id} with new rule code.")
         self.policies[policy_id] = new_rule_code
         return {"status": "success", "message": f"Policy {policy_id} updated."}
@@ -156,6 +175,11 @@ mock_opa_client = MockOPAClient()
 
 
 async def log_governance_event_to_cloud_logging(event_type: str, event_data: Dict[str, Any]):
+    """Logs a governance event to Cloud Logging.
+    Args:
+        event_type: The type of the governance event.
+        event_data: The data associated with the governance event.
+    """
     if not gcp_logger:
         logger.error("Cloud Logging client not initialized. Cannot log governance event.")
         return
@@ -168,6 +192,11 @@ async def log_governance_event_to_cloud_logging(event_type: str, event_data: Dic
     logger.info(f"Governance event '{event_type}' logged to Cloud Logging.")
 
 async def log_to_bigquery_table(table_id: str, data: Dict[str, Any]):
+    """Logs data to a BigQuery table.
+    Args:
+        table_id: The ID of the BigQuery table.
+        data: The data to log to the table.
+    """
     if not bq_client:
         logger.error("BigQuery client not initialized. Cannot log to BigQuery.")
         return
@@ -185,6 +214,13 @@ async def log_to_bigquery_table(table_id: str, data: Dict[str, Any]):
 # Request/response middleware for request ID and timing
 @app.middleware("http")
 async def add_request_id_and_timing(request: Request, call_next):
+    """Adds a request ID and timing information to each request.
+    Args:
+        request: The incoming request.
+        call_next: The next middleware to call.
+    Returns:
+        The response from the next middleware.
+    """
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     request.state.request_id = req_id
     try:
@@ -198,6 +234,13 @@ async def add_request_id_and_timing(request: Request, call_next):
 # Global exception handler (fallback)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler for unhandled exceptions.
+    Args:
+        request: The incoming request.
+        exc: The unhandled exception.
+    Returns:
+        A JSON response with a 500 status code.
+    """
     req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
     logger.exception(f"Unhandled error: {exc} request_id={req_id}")
     return JSONResponse(status_code=500, content={"error": "Internal Server Error", "request_id": req_id})
@@ -206,14 +249,28 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/")
 def read_root():
+    """Root endpoint for the service.
+    Returns:
+        A dictionary with the service name and status.
+    """
     return {"service": "TF-ICRE™ Governance Engine", "status": "running"}
 
 @app.get("/health")
 def health():
+    """Health check endpoint.
+    Returns:
+        A dictionary with the service's health status.
+    """
     return {"status": "ok"}
 
 @app.get("/ready")
 def readiness():
+    """Readiness check endpoint.
+    Returns:
+        A dictionary with the service's readiness status.
+    Raises:
+        HTTPException: If the service is not ready.
+    """
     ready = all([db is not None, bq_client is not None, gcp_logger is not None])
     if not ready:
         raise HTTPException(status_code=503, detail="Dependencies not ready")
@@ -221,8 +278,13 @@ def readiness():
 
 @app.post("/v1/governance/register_model")
 async def register_model(model_data: ModelMetadata):
-    """
-    Endpoint to register a new ML model in the Pan-African Model Registry (PAMR) in Firestore.
+    """Registers a new ML model in the Pan-African Model Registry (PAMR) in Firestore.
+    Args:
+        model_data: The metadata of the model to register.
+    Returns:
+        A dictionary with the status of the registration.
+    Raises:
+        HTTPException: If the model registration fails.
     """
     if not db:
         raise HTTPException(status_code=500, detail="Firestore client not initialized.")
@@ -237,8 +299,13 @@ async def register_model(model_data: ModelMetadata):
 
 @app.post("/v1/governance/override")
 async def log_override_decision(override_data: OverrideDecision):
-    """
-    Endpoint to log a manual override of an AI decision to Firestore (immutable) and BigQuery (analytics).
+    """Logs a manual override of an AI decision to Firestore (immutable) and BigQuery (analytics).
+    Args:
+        override_data: The data for the override decision.
+    Returns:
+        A dictionary with the status of the override logging.
+    Raises:
+        HTTPException: If the override logging fails.
     """
     if not db or not bq_client:
         raise HTTPException(status_code=500, detail="Firestore or BigQuery client not initialized.")
@@ -263,8 +330,15 @@ async def log_override_decision(override_data: OverrideDecision):
 
 @app.get("/v1/governance/audit")
 async def query_audit_trail(user_id: str = None, start_date: str = None, end_date: str = None):
-    """
-    Endpoint to query the immutable audit trail from BigQuery.
+    """Queries the immutable audit trail from BigQuery.
+    Args:
+        user_id: The ID of the user to filter by.
+        start_date: The start date of the query range.
+        end_date: The end date of the query range.
+    Returns:
+        A dictionary with the query results.
+    Raises:
+        HTTPException: If the query fails.
     """
     if not bq_client:
         raise HTTPException(status_code=500, detail="BigQuery client not initialized.")
@@ -287,9 +361,14 @@ async def query_audit_trail(user_id: str = None, start_date: str = None, end_dat
 
 @app.post("/v1/governance/policy/update")
 async def modify_rac_rule(policy_update: PolicyRule):
-    """
-    Endpoint to modify a Regulations-as-Code (RaC) rule.
+    """Modifies a Regulations-as-Code (RaC) rule.
     In a real scenario, this would involve updating the OPA policy store and reloading.
+    Args:
+        policy_update: The policy update data.
+    Returns:
+        A dictionary with the status of the policy update.
+    Raises:
+        HTTPException: If the policy update fails.
     """
     try:
         result = await mock_opa_client.update_policy(policy_update.policy_id, policy_update.rule_code)
@@ -301,8 +380,14 @@ async def modify_rac_rule(policy_update: PolicyRule):
 
 @app.post("/v1/governance/policy/evaluate")
 async def evaluate_policy(policy_id: str, input_data: Dict[str, Any] = Body(...)):
-    """
-    Endpoint to evaluate a Regulations-as-Code (RaC) rule against given input data.
+    """Evaluates a Regulations-as-Code (RaC) rule against given input data.
+    Args:
+        policy_id: The ID of the policy to evaluate.
+        input_data: The input data for the policy evaluation.
+    Returns:
+        A dictionary with the result of the policy evaluation.
+    Raises:
+        HTTPException: If the policy evaluation fails.
     """
     try:
         result = await mock_opa_client.evaluate_policy(policy_id, {"input": input_data})

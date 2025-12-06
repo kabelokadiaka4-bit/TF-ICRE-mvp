@@ -1,3 +1,9 @@
+"""
+### TF-ICRE Machine Learning Pipelines
+
+This module defines the Vertex AI pipelines for training and deploying the machine learning models used in the TF-ICRE™ platform.
+"""
+
 # ml-pipelines/pipelines/training_pipeline.py
 from kfp.v2 import dsl
 from kfp.v2 import compiler
@@ -23,6 +29,17 @@ def training_pipeline(
     serving_container_image: str = "us-docker.pkg.dev/vertex-ai/prediction/xgboost-cpu.1-1:latest",
     target_column: str = "status" # Added target column for feature engineering
 ):
+    """
+    Trains and deploys an XGBoost credit scoring model.
+
+    Args:
+        project_id (str): The GCP project ID.
+        region (str): The GCP region.
+        dataset_id (str): The BigQuery dataset ID.
+        table_id (str): The BigQuery table ID.
+        serving_container_image (str, optional): The container image for serving the model. Defaults to "us-docker.pkg.dev/vertex-ai/prediction/xgboost-cpu.1-1:latest".
+        target_column (str, optional): The target column for feature engineering. Defaults to "status".
+    """
     # Step 1: Extract Data
     extract_op = extract_data(
         project_id=project_id,
@@ -67,6 +84,15 @@ def tbml_gnn_training_pipeline(
     transaction_data_table: str,
     serving_container_image: str = "us-docker.pkg.dev/vertex-ai/prediction/pytorch-cpu.1-7:latest" # Example
 ):
+    """
+    Trains and deploys a GNN-based TBML model.
+
+    Args:
+        project_id (str): The GCP project ID.
+        region (str): The GCP region.
+        transaction_data_table (str): The BigQuery table containing the transaction data.
+        serving_container_image (str, optional): The container image for serving the model. Defaults to "us-docker.pkg.dev/vertex-ai/prediction/pytorch-cpu.1-7:latest".
+    """
     # Step 1: Extract Transaction Graph Data (Placeholder)
     # This would be a specialized component for graph data extraction
     # For now, we'll directly feed to the GNN training component

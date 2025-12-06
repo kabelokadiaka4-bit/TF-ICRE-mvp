@@ -1,3 +1,15 @@
+"""
+### TF-ICRE Daily Data Ingestion DAG
+
+This DAG orchestrates the daily ingestion of loan data from a source system into BigQuery.
+
+**Workflow:**
+1.  **Wait for File:** Waits for a CSV file of loan data to be uploaded to a GCS bucket.
+2.  **Clean Data:** Triggers a Dataflow Flex Template job to clean and transform the raw CSV data into a JSONL file.
+3.  **Load to BigQuery:** Loads the cleaned JSONL data into the `loans` table in the `clean_data` BigQuery dataset.
+4.  **Archive File:** Archives the raw CSV file to an `archive` folder in the GCS bucket.
+"""
+
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -75,6 +87,12 @@ with DAG(
 
     # Task 4: Archive Raw File (Python Operator wrapper)
     def archive_file(**kwargs):
+        """
+        Archives the raw data file by moving it from the 'raw/' directory to the 'archive/' directory in GCS.
+
+        Args:
+            **kwargs: Keyword arguments passed by Airflow, including the execution date ('ds').
+        """
         # Placeholder for logic to move file from 'raw/' to 'archive/'
         print(f"Archiving file for {kwargs['ds']}")
 
