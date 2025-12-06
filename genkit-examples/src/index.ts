@@ -1,3 +1,8 @@
+/**
+ * @file This file contains a simple Genkit flow that demonstrates the basic functionality of the Genkit framework.
+ * @see https://firebase.google.com/docs/genkit
+ */
+
 import { defineFlow, runFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/googleai';
 import { configureGenkit } from '@genkit-ai/core';
@@ -10,6 +15,12 @@ configureGenkit({
   enableTracing: true,
 });
 
+/**
+ * A simple Genkit flow that takes a name as input and returns a greeting.
+ *
+ * @param {string} name - The name to include in the greeting.
+ * @returns {string} A greeting message.
+ */
 export const helloWorldFlow = defineFlow(
   {
     name: 'helloWorldFlow',

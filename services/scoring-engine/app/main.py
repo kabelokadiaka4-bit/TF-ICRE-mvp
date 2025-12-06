@@ -74,6 +74,7 @@ except Exception as e:
 
 # Define the data models for the API requests and responses
 class ScoreRequest(BaseModel):
+    """Request model for a single scoring request."""
     entity_id: str
     loan_amount: float
     currency: str
@@ -82,6 +83,7 @@ class ScoreRequest(BaseModel):
     # Add other relevant fields for scoring based on the deep dive
 
 class ScoreResponse(BaseModel):
+    """Response model for a single scoring request."""
     entity_id: str
     composite_rating: str
     score: int
@@ -95,9 +97,11 @@ class ScoreResponse(BaseModel):
     audit_id: str
 
 class BatchScoreRequest(BaseModel):
+    """Request model for a batch scoring request."""
     requests: List[ScoreRequest]
 
 class ExplanationResponse(BaseModel):
+    """Response model for an explanation request."""
     loan_id: str
     explanation: Dict[str, Any]
     plain_language_summary: str
@@ -143,14 +147,32 @@ MOCK_FEATURES_DB = {
 }
 
 async def mock_fetch_historical_data(entity_id: str) -> Dict[str, Any]:
+    """Fetches mock historical data for a given entity.
+    Args:
+        entity_id: The ID of the entity.
+    Returns:
+        A dictionary of mock historical data.
+    """
     logger.info(f"Mock fetching historical data for {entity_id}")
     return {"loan_count": 10, "avg_loan_size": 100000, "default_events": 2}
 
 async def mock_fetch_realtime_features(entity_id: str) -> Dict[str, Any]:
+    """Fetches mock real-time features for a given entity.
+    Args:
+        entity_id: The ID of the entity.
+    Returns:
+        A dictionary of mock real-time features.
+    """
     logger.info(f"Mock fetching real-time features for {entity_id}")
     return MOCK_FEATURES_DB.get(entity_id, {})
 
 async def mock_invoke_model_endpoint(features: Dict[str, Any]) -> Dict[str, Any]:
+    """Invokes a mock model endpoint to get a prediction.
+    Args:
+        features: A dictionary of features.
+    Returns:
+        A dictionary containing the mock model's prediction.
+    """
     logger.info("Mock invoking model endpoint for prediction.")
     # Simulate a model prediction
     score = 750 # Example score
@@ -161,6 +183,12 @@ async def mock_invoke_model_endpoint(features: Dict[str, Any]) -> Dict[str, Any]
     return {"score": score, "pd_12m": pd_12m, "lgd": lgd, "ead_usd": ead_usd, "recommendation": recommendation}
 
 async def mock_get_shap_explanation(features: Dict[str, Any]) -> Dict[str, Any]:
+    """Gets a mock SHAP explanation.
+    Args:
+        features: A dictionary of features.
+    Returns:
+        A dictionary containing the mock SHAP explanation.
+    """
     logger.info("Mock getting SHAP explanations.")
     return {
         "top_positive_factors": [
@@ -174,6 +202,13 @@ async def mock_get_shap_explanation(features: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 async def generate_plain_language_summary_with_gemini(explanation: Dict[str, Any], recommendation: str) -> str:
+    """Generates a plain-language summary of a credit decision using the Gemini API.
+    Args:
+        explanation: A dictionary containing the explanation of the decision.
+        recommendation: The recommendation made by the model.
+    Returns:
+        A plain-language summary of the credit decision.
+    """
     if not gemini_model:
         logger.warning("Gemini model not initialized. Returning fallback explanation.")
         return "A detailed explanation of the credit decision is unavailable due to an issue with the AI explanation service."
@@ -196,6 +231,10 @@ async def generate_plain_language_summary_with_gemini(explanation: Dict[str, Any
         return "Could not generate a plain-language summary at this time."
 
 async def log_decision_to_bigquery(decision_data: Dict[str, Any]):
+    """Logs a credit decision to BigQuery.
+    Args:
+        decision_data: A dictionary containing the decision data to log.
+    """
     if not bq_client or not gcp_logger:
         logger.error("BigQuery or Cloud Logging client not initialized. Cannot log decision.")
         return
@@ -223,6 +262,13 @@ async def log_decision_to_bigquery(decision_data: Dict[str, Any]):
 # Request/response middleware for request ID and timing
 @app.middleware("http")
 async def add_request_id_and_timing(request: Request, call_next):
+    """Middleware to add a request ID and timing information to each request.
+    Args:
+        request: The incoming request.
+        call_next: The next middleware or endpoint to call.
+    Returns:
+        The response from the next middleware or endpoint.
+    """
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     request.state.request_id = req_id
     try:
@@ -236,6 +282,13 @@ async def add_request_id_and_timing(request: Request, call_next):
 # Global exception handler (fallback)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    """A global exception handler to catch unhandled exceptions.
+    Args:
+        request: The incoming request.
+        exc: The exception that was raised.
+    Returns:
+        A JSON response with a 500 status code.
+    """
     req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
     logger.exception(f"Unhandled error: {exc} request_id={req_id}")
     return JSONResponse(status_code=500, content={"error": "Internal Server Error", "request_id": req_id})
@@ -244,14 +297,29 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/")
 def read_root():
+    """Root endpoint for the service.
+    Returns:
+        A dictionary with the service name and status.
+    """
     return {"service": "TF-ICRE™ Scoring Engine", "status": "running"}
 
 @app.get("/health")
 def health():
+    """Health check endpoint.
+    Returns:
+        A dictionary with the service status.
+    """
     return {"status": "ok"}
 
 @app.get("/ready")
 def readiness():
+    """Readiness check endpoint.
+    Returns:
+        A dictionary with the service status.
+
+    Raises:
+        HTTPException: If the service is not ready.
+    """
     ready = all([bq_client is not None, aiplatform is not None, gemini_model is not None, gcp_logger is not None])
     if not ready:
         raise HTTPException(status_code=503, detail="Dependencies not ready")
@@ -259,8 +327,14 @@ def readiness():
 
 @app.post("/v1/score", response_model=ScoreResponse)
 async def generate_score(request: ScoreRequest, http_request: Request):
-    """
-    Endpoint to generate a credit score for a single entity.
+    """Generates a credit score for a single entity.
+    Args:
+        request: The scoring request.
+        http_request: The incoming HTTP request.
+    Returns:
+        A ScoreResponse object with the scoring results.
+    Raises:
+        HTTPException: If the backend services are not initialized.
     """
     if not bq_client or not aiplatform or not gemini_model or not gcp_logger:
         raise HTTPException(status_code=500, detail="Backend services not initialized.")
@@ -316,10 +390,11 @@ async def generate_score(request: ScoreRequest, http_request: Request):
 
 @app.post("/v1/score/batch")
 async def generate_batch_score(request: BatchScoreRequest):
-    """
-    Endpoint for batch scoring of a portfolio.
-    This is a placeholder and would ideally call the single /v1/score endpoint repeatedly
-    or use a batch prediction service.
+    """Generates credit scores for a batch of entities.
+    Args:
+        request: The batch scoring request.
+    Returns:
+        A dictionary with a list of ScoreResponse objects.
     """
     results = []
     for req in request.requests:
@@ -345,9 +420,13 @@ async def generate_batch_score(request: BatchScoreRequest):
 
 @app.get("/v1/explain/{loan_id}", response_model=ExplanationResponse)
 async def get_explanation(loan_id: str):
-    """
-    Endpoint to retrieve SHAP explanations for a historical decision.
-    In a real system, this would query BigQuery or a dedicated explanation store.
+    """Retrieves SHAP explanations for a historical decision.
+    Args:
+        loan_id: The ID of the loan to explain.
+    Returns:
+        An ExplanationResponse object with the explanation.
+    Raises:
+        HTTPException: If the Gemini model is not initialized.
     """
     if not gemini_model:
         raise HTTPException(status_code=500, detail="Gemini model not initialized.")

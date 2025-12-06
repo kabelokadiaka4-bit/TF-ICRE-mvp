@@ -1,3 +1,16 @@
+"""
+### TF-ICRE Data Quality Check DAG
+
+This DAG performs a series of data quality checks on the `loans` table in the `clean_data` BigQuery dataset.
+
+**Checks:**
+1.  **No Nulls:** Checks for null values in critical fields (`loan_id`, `customer_id`, `amount`).
+2.  **Valid Amounts:** Checks for negative or zero loan amounts.
+3.  **Loan ID Uniqueness:** Checks for duplicate `loan_id`s.
+4.  **Customer ID Uniqueness:** Checks for duplicate `customer_id`s.
+5.  **Valid Currency:** Checks for invalid currency codes.
+"""
+
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCheckOperator, BigQueryInsertJobOperator

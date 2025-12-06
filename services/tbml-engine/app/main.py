@@ -66,6 +66,7 @@ except Exception as e:
 
 # Define the data models for the API requests
 class TBMLEntity(BaseModel):
+    """Data model for a TBML entity."""
     transaction_id: str
     document_url: str = None # GCS URL to the document (e.g., invoice, B/L)
     commodity_code: str = None
@@ -77,6 +78,7 @@ class TBMLEntity(BaseModel):
     # Add other relevant fields for TBML analysis
 
 class TBMLCheckResponse(BaseModel):
+    """Data model for a TBML check response."""
     transaction_id: str
     tbml_risk_score: int
     flags: List[str]
@@ -84,6 +86,7 @@ class TBMLCheckResponse(BaseModel):
     recommendation: str
 
 class NetworkGraphResponse(BaseModel):
+    """Data model for a network graph response."""
     transaction_id: str
     graph_status: str
     nodes: int
@@ -91,6 +94,7 @@ class NetworkGraphResponse(BaseModel):
     graph_url: str = None
 
 class TBMLAlert(BaseModel):
+    """Data model for a TBML alert."""
     alert_id: str
     transaction_id: str
     risk_score: int
@@ -132,6 +136,13 @@ if limiter:
 # Request/response middleware for request ID and timing
 @app.middleware("http")
 async def add_request_id_and_timing(request: Request, call_next):
+    """Adds a request ID and timing information to each request.
+    Args:
+        request: The incoming request.
+        call_next: The next middleware to call.
+    Returns:
+        The response from the next middleware.
+    """
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     request.state.request_id = req_id
     try:
@@ -145,12 +156,25 @@ async def add_request_id_and_timing(request: Request, call_next):
 # Global exception handler (fallback)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler for unhandled exceptions.
+    Args:
+        request: The incoming request.
+        exc: The exception that occurred.
+    Returns:
+        A JSON response with a 500 status code.
+    """
     req_id = getattr(request.state, "request_id", str(uuid.uuid4()))
     logger.exception(f"Unhandled error: {exc} request_id={req_id}")
     return JSONResponse(status_code=500, content={"error": "Internal Server Error", "request_id": req_id})
 
 # --- MOCK DATA/FUNCTIONS for demonstration until real models/data are ready ---
 async def mock_document_ai_extraction(document_url: str) -> Dict[str, Any]:
+    """Mocks the extraction of fields from a document using Document AI.
+    Args:
+        document_url: The URL of the document to process.
+    Returns:
+        A dictionary of extracted fields.
+    """
     logger.info(f"Mock Document AI extracting fields from {document_url}")
     # Simulate extraction based on document_url (e.g., parsing a specific invoice ID)
     if "invoice" in document_url:
@@ -174,6 +198,13 @@ async def mock_document_ai_extraction(document_url: str) -> Dict[str, Any]:
     return {}
 
 async def mock_external_api_lookup(api_name: str, query: Dict[str, Any]) -> Dict[str, Any]:
+    """Mocks a lookup to an external API.
+    Args:
+        api_name: The name of the API to look up.
+        query: The query to send to the API.
+    Returns:
+        A dictionary of the API response.
+    """
     logger.info(f"Mock external API lookup for {api_name} with query: {query}")
     if api_name == "UN_COMTRADE":
         return {"market_price_per_unit": 900.0}
@@ -182,11 +213,23 @@ async def mock_external_api_lookup(api_name: str, query: Dict[str, Any]) -> Dict
     return {}
 
 async def mock_invoke_gnn_model(graph_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Mocks the invocation of a Graph Neural Network (GNN) model.
+    Args:
+        graph_data: The data for the graph.
+    Returns:
+        A dictionary of the GNN model's output.
+    """
     logger.info("Mock invoking GNN model for network anomaly detection.")
     # Simulate GNN output
     return {"network_anomaly_score": 0.7, "circular_pattern_detected": True}
 
 async def calculate_invoice_mispricing_score(invoice_data: Dict[str, Any]) -> float:
+    """Calculates the invoice mispricing score.
+    Args:
+        invoice_data: The data from the invoice.
+    Returns:
+        The invoice mispricing score.
+    """
     # Pseudocode from deep dive
     invoice_price_per_unit = invoice_data["total_amount"] / invoice_data["quantity"]
     market_price_data = await mock_external_api_lookup("UN_COMTRADE", {"commodity": invoice_data["commodity_code"]})
@@ -204,6 +247,12 @@ async def calculate_invoice_mispricing_score(invoice_data: Dict[str, Any]) -> fl
     return risk_score
 
 async def calculate_shipping_verification_score(entity_data: Dict[str, Any]) -> float:
+    """Calculates the shipping verification score.
+    Args:
+        entity_data: The data for the entity.
+    Returns:
+        The shipping verification score.
+    """
     # Pseudocode from deep dive
     marine_traffic_data = await mock_external_api_lookup("MARINE_TRAFFIC", {"vessel_name": "MV African Star"})
     visited_loading = any(p['port'] == entity_data.get("port_of_loading") for p in marine_traffic_data.get("vessel_history", []))
@@ -215,6 +264,10 @@ async def calculate_shipping_verification_score(entity_data: Dict[str, Any]) -> 
 
 
 async def log_tbml_decision_to_cloud_logging(decision_data: Dict[str, Any]):
+    """Logs a TBML decision to Cloud Logging.
+    Args:
+        decision_data: The data for the TBML decision.
+    """
     if not gcp_logger:
         logger.error("Cloud Logging client not initialized. Cannot log TBML decision.")
         return
@@ -231,14 +284,28 @@ async def log_tbml_decision_to_cloud_logging(decision_data: Dict[str, Any]):
 
 @app.get("/")
 def read_root():
+    """Root endpoint for the service.
+    Returns:
+        A dictionary with the service name and status.
+    """
     return {"service": "TF-ICRE™ TBML Engine", "status": "running"}
 
 @app.get("/health")
 def health():
+    """Health check endpoint.
+    Returns:
+        A dictionary with the service's health status.
+    """
     return {"status": "ok"}
 
 @app.get("/ready")
 def readiness():
+    """Readiness check endpoint.
+    Returns:
+        A dictionary with the service's readiness status.
+    Raises:
+        HTTPException: If the service is not ready.
+    """
     ready = all([aiplatform is not None, gcp_logger is not None])
     if not ready:
         raise HTTPException(status_code=503, detail="Dependencies not ready")
@@ -246,8 +313,13 @@ def readiness():
 
 @app.post("/v1/tbml/check", response_model=TBMLCheckResponse)
 async def analyze_transaction(request: TBMLEntity):
-    """
-    Endpoint to analyze a single trade transaction for TBML risk.
+    """Analyzes a single trade transaction for TBML risk.
+    Args:
+        request: The request to analyze.
+    Returns:
+        A TBMLCheckResponse with the analysis results.
+    Raises:
+        HTTPException: If the backend services are not initialized.
     """
     if not aiplatform or not gcp_logger: # Document AI is optional for mock
         raise HTTPException(status_code=500, detail="Backend services not initialized.")
@@ -305,8 +377,11 @@ async def analyze_transaction(request: TBMLEntity):
 
 @app.post("/v1/tbml/network", response_model=NetworkGraphResponse)
 async def generate_network_graph(request: TBMLEntity):
-    """
-    Endpoint to generate a counterparty risk network graph.
+    """Generates a counterparty risk network graph.
+    Args:
+        request: The request to generate the graph for.
+    Returns:
+        A NetworkGraphResponse with the graph generation status.
     """
     # This is a placeholder for building the graph and running GNNs
     # In a real scenario, this would involve:
@@ -331,9 +406,10 @@ async def generate_network_graph(request: TBMLEntity):
 
 @app.get("/v1/tbml/alerts", response_model=List[TBMLAlert])
 async def get_tbml_alerts():
-    """
-    Endpoint to retrieve high-risk TBML alerts for review.
+    """Retrieves high-risk TBML alerts for review.
     In a real system, this would query BigQuery or Firestore for active alerts.
+    Returns:
+        A list of TBMLAlert objects.
     """
     alerts = [
         TBMLAlert(
