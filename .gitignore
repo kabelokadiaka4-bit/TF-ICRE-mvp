@@ -1,0 +1,43 @@
+# Node.js
+node_modules
+.next
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+
+# General
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sensitive files
+*.env
+*.env.local
+gcp-sa-key.json
+tf-icre-2d6533c29257.json
+*.pem
+
+# Gemini
+.gemini/
+gha-creds-*.json
